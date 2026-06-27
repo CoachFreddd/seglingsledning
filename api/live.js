@@ -3,7 +3,7 @@ import { get } from "@vercel/blob";
 const BLOB_PATH = "regatta/live.json";
 
 function blobAuthOptions() {
-  const options = {};
+  const options = { access: "private" };
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     options.token = process.env.BLOB_READ_WRITE_TOKEN;
   }
