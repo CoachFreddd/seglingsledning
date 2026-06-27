@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     const body = JSON.stringify({ ...payload, serverSavedAt: Date.now() });
     const blob = await put(BLOB_PATH, body, {
       ...blobAuthOptions(),
-      access: "private",
+      access: "public",
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json"
