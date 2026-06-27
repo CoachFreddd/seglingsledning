@@ -15166,7 +15166,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     });
     return h("div", { style: { background: "var(--c-surface)", borderRadius: 12, border: "1px solid var(--c-border)", overflow: "hidden" } }, title, h("div", { style: { overflowX: "auto" } }, h("table", { style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(620, 238 + allHeats.length * 58) } }, h("thead", null, headerTop, headerHeat), h("tbody", null, rows))));
   }
-  function LeaderboardView({ regatta, setRegatta, teams, schedule, results, setResults }) {
+  function LeaderboardView({ regatta, setRegatta, teams, schedule, setSchedule, boatColors, results, setResults, onGoStart }) {
     const allHeats = flattenScheduleHeats(schedule);
     const completedFlightCount = getCompletedFlightCount(schedule, results);
     const finalizedFlightCount = regatta?.finalized ? Math.min(regatta.finalizedFlightCount || 0, schedule.length) : null;
@@ -15249,7 +15249,55 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       if (!res) return null;
       return res.overrides?.[teamId] || null;
     };
-    return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Avsluta regatta" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", lineHeight: 1.5 } }, regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Regattan \xE4r avslutad. Resultatlistan r\xE4knar ", finalizedFlightCount, " hela flight", finalizedFlightCount === 1 ? "" : "er", ".") : completedFlightCount > 0 ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Det finns ", completedFlightCount, " hel", completedFlightCount === 1 ? "" : "a", " flight", completedFlightCount === 1 ? "" : "er", " klar", completedFlightCount === 1 ? "" : "a", ". Vid avslut r\xE4knas bara dessa och tidigare flighter.") : "Ingen hel flight \xE4r klar \xE4nnu."), regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setRegatta((r) => ({ ...r, finalized: false, finalizedFlightCount: null, finalizedAt: null })), style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "\xD6ppna igen") : /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", disabled: completedFlightCount === 0, onClick: () => setRegatta((r) => ({ ...r, finalized: true, finalizedFlightCount: completedFlightCount, finalizedAt: Date.now() })) }, "Avsluta med ", completedFlightCount, " flight", completedFlightCount === 1 ? "" : "er"))), /* @__PURE__ */ import_react.default.createElement(Sect, { title: `${regatta?.finalized ? "Slutst\xE4llning" : "Live-st\xE4llning"} \u2014 ${completed}/${regatta?.finalized ? scoredHeats.length : total} heat r\xE4knas` }, ranked.length === 0 ? /* @__PURE__ */ import_react.default.createElement("p", { style: { color: "var(--c-muted)", fontSize: 14 } }, "Inga resultat \xE4nnu.") : /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, ranked.map((entry, i) => /* @__PURE__ */ import_react.default.createElement("div", { key: entry.team.id, style: {
+    const finishRegattaFromStandings = () => {
+      if (completedFlightCount <= 0) return;
+      const seriesRegatta = { ...regatta, finalized: true, finalizedFlightCount: completedFlightCount };
+      const { ranked: seriesRanked } = buildScoreData(teams || [], schedule || [], results || {}, seriesRegatta);
+      const activeBoats = (boatColors || BOAT_COLORS).slice(0, regatta?.numBoats || 4);
+      const finalistCount = Math.min(activeBoats.length, seriesRanked.length);
+      const sailFinal = window.confirm(`Avsluta regattan. Vill du skapa ett finalheat med topp ${finalistCount}?`);
+      if (sailFinal && finalistCount > 1) {
+        const baseSchedule = regatta?.finalMode && schedule?.[schedule.length - 1]?.[0]?.final ? schedule.slice(0, -1) : schedule;
+        const finalIdx = flattenScheduleHeats(baseSchedule || []).length;
+        const finalists = seriesRanked.slice(0, finalistCount);
+        const finalHeat = {
+          final: true,
+          heatTeams: finalists.map((entry, i) => ({ team: entry.team, boat: activeBoats[i] })),
+          sitOut: []
+        };
+        const nextSchedule = [...(baseSchedule || []), [finalHeat]];
+        setSchedule(nextSchedule);
+        setRegatta((r) => ({
+          ...r,
+          dayEnded: false,
+          finalized: true,
+          finalizedFlightCount: completedFlightCount,
+          finalizedReason: "final",
+          finalizedAt: Date.now(),
+          finalMode: true,
+          finalHeatGlobalIdx: finalIdx,
+          finalSeeds: finalists.map((entry, i) => ({
+            teamId: entry.team.id,
+            seriesPlace: i + 1,
+            seedPlace: i + 1,
+            seedPoints: i + 1,
+            seriesPoints: entry.points
+          }))
+        }));
+        if (onGoStart) onGoStart();
+        return;
+      }
+      setRegatta((r) => ({
+        ...r,
+        dayEnded: false,
+        finalized: true,
+        finalizedFlightCount: completedFlightCount,
+        finalizedReason: "manual",
+        finalizedAt: Date.now(),
+        finalMode: false
+      }));
+    };
+    return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Avsluta regatta" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", lineHeight: 1.5 } }, regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Regattan \xE4r avslutad. Resultatlistan r\xE4knar ", finalizedFlightCount, " hela flight", finalizedFlightCount === 1 ? "" : "er", ".") : completedFlightCount > 0 ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Det finns ", completedFlightCount, " hel", completedFlightCount === 1 ? "" : "a", " flight", completedFlightCount === 1 ? "" : "er", " klar", completedFlightCount === 1 ? "" : "a", ". Vid avslut kan du skapa finalheat med toppbesättningarna.") : "Ingen hel flight \xE4r klar \xE4nnu."), regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setRegatta((r) => ({ ...r, finalized: false, finalizedFlightCount: null, finalizedAt: null, finalMode: false, finalHeatGlobalIdx: null, finalSeeds: null })), style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "\xD6ppna igen") : /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", disabled: completedFlightCount === 0, onClick: finishRegattaFromStandings }, "Avsluta regatta"))), /* @__PURE__ */ import_react.default.createElement(Sect, { title: `${regatta?.finalized ? "Slutst\xE4llning" : "Live-st\xE4llning"} \u2014 ${completed}/${regatta?.finalized ? scoredHeats.length : total} heat r\xE4knas` }, ranked.length === 0 ? /* @__PURE__ */ import_react.default.createElement("p", { style: { color: "var(--c-muted)", fontSize: 14 } }, "Inga resultat \xE4nnu.") : /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, ranked.map((entry, i) => /* @__PURE__ */ import_react.default.createElement("div", { key: entry.team.id, style: {
       display: "flex",
       alignItems: "center",
       gap: 10,
@@ -15852,7 +15900,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     };
     (0, import_react.useEffect)(() => {
       if (!isPublic && publishing && Date.now() - lastImmediatePublishRef.current > 750) publish();
-    }, [results, liveState, publishing]);
+    }, [results, liveState, regatta, schedule, publishing]);
     (0, import_react.useEffect)(() => {
       if (!isPublic) return;
       const load = async () => {
@@ -15994,7 +16042,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       } catch (e) {
         return /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: 30, color: "#f87171", fontFamily: "monospace", fontSize: 13, background: "#1a1a2e", minHeight: 200, borderRadius: 12 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontWeight: 800, fontSize: 16, marginBottom: 12 } }, "StartView kraschade:"), /* @__PURE__ */ import_react.default.createElement("div", { style: { marginBottom: 8 } }, e.message), /* @__PURE__ */ import_react.default.createElement("pre", { style: { fontSize: 11, opacity: 0.7, whiteSpace: "pre-wrap" } }, e.stack));
       }
-    })()), tab === 3 && /* @__PURE__ */ import_react.default.createElement(LeaderboardView, { regatta, setRegatta, teams, schedule: sched, results, setResults }), tab === 4 && /* @__PURE__ */ import_react.default.createElement(StatisticsView, { teams, schedule: sched, results }))), /* @__PURE__ */ import_react.default.createElement("style", null, `@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`));
+    })()), tab === 3 && /* @__PURE__ */ import_react.default.createElement(LeaderboardView, { regatta, setRegatta, teams, schedule: sched, setSchedule, boatColors: activeBoats, results, setResults, onGoStart: () => setTab(2) }), tab === 4 && /* @__PURE__ */ import_react.default.createElement(StatisticsView, { teams, schedule: sched, results }))), /* @__PURE__ */ import_react.default.createElement("style", null, `@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`));
   }
   import_client.default.createRoot(document.getElementById("root")).render(import_react.default.createElement(App));
 })();
