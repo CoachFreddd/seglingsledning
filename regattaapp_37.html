@@ -15547,7 +15547,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     return trimmed;
   }
   function App() {
-    const isAdminRoute = window.location.hash === ADMIN_HASH;
+    const adminParam = new URLSearchParams(window.location.search || "").get("admin");
+    const isAdminRoute = window.location.hash === ADMIN_HASH || adminParam === "1" || adminParam === "true";
     const isPublic = !isAdminRoute;
     const [tab, setTab] = (0, import_react.useState)(0);
     const [regatta, setRegatta] = (0, import_react.useState)({ name: "", startDate: "", endDate: "", firstStart: "", lastStart: "", dayTimes: {}, date: "", place: "", numBoats: 4, open: true });
@@ -15577,7 +15578,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const lastImmediatePublishRef = (0, import_react.useRef)(0);
     const remoteSyncTimerRef = (0, import_react.useRef)(null);
     const activeBoats = boatColors.slice(0, regatta.numBoats || 4);
-    const publicPageUrl = window.location.href.replace(/#.*$/, "");
+    const publicPageUrl = `${window.location.origin}${window.location.pathname}`;
     const fallbackSchedule = teams.length >= 2 ? [[{
       heatTeams: teams.slice(0, activeBoats.length).map((t, i) => ({ team: t, boat: activeBoats[i] })),
       sitOut: teams.slice(activeBoats.length)
