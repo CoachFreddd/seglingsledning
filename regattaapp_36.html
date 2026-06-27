@@ -15419,12 +15419,19 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   var ADMIN_HASH = "#ledning";
   var ADMIN_UNLOCK_KEY = "regattaapp-admin-unlocked-v1";
   var ADMIN_PIN = "segel2026";
-  var DEFAULT_SYNC_URL = "/api/upload";
-  var REMOTE_LIVE_URL = "/api/live";
+  var REMOTE_BASE_URL = "https://seglingsledning.vercel.app";
+  var DEFAULT_SYNC_URL = REMOTE_BASE_URL + "/api/upload";
+  var REMOTE_LIVE_URL = REMOTE_BASE_URL + "/api/live";
   var POLL_INTERVAL = 2e3;
   var REMOTE_SYNC_MIN_INTERVAL = 1e4;
   function getDefaultSyncUrl() {
     return window.location.protocol === "http:" || window.location.protocol === "https:" ? DEFAULT_SYNC_URL : "";
+  }
+  function normalizeSyncUrl(url) {
+    const trimmed = (url || "").trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("/api/")) return REMOTE_BASE_URL + trimmed;
+    return trimmed;
   }
   function App() {
     const isAdminRoute = window.location.hash === ADMIN_HASH;
@@ -15588,7 +15595,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       setSyncState((s) => ({ ...s, pending: true, status: syncSettings.url ? "queued" : "local", error: "" }));
     };
     const scheduleRemoteSync = (payload = null) => {
-      const url = (syncSettings.url || "").trim();
+      const url = normalizeSyncUrl(syncSettings.url);
       if (!url) return;
       const now = Date.now();
       const wait = Math.max(0, REMOTE_SYNC_MIN_INTERVAL - (now - lastRemoteSyncRef.current));
@@ -15600,7 +15607,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       }, wait);
     };
     const attemptRemoteSync = async (payloadArg = null) => {
-      const url = (syncSettings.url || "").trim();
+      const url = normalizeSyncUrl(syncSettings.url);
       if (!url) {
         setSyncState((s) => ({ ...s, status: "local", pending: !!window.localStorage?.getItem(SYNC_QUEUE_KEY), error: "" }));
         return false;
