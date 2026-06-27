@@ -1,0 +1,26 @@
+{
+  "name": "Regattaapp",
+  "short_name": "Regatta",
+  "description": "Offline-first start-, schema- och resultatstöd för sprintsegling.",
+  "lang": "sv",
+  "start_url": "./regattaapp_36.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c0f1a",
+  "theme_color": "#0c0f1a",
+  "icons": [
+    {
+      "src": "flags/Flag-P.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "flags/Flag-P.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
