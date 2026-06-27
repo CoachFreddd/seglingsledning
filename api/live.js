@@ -32,7 +32,9 @@ export default async function handler(req, res) {
     if (!blob?.url) {
       return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
     }
-    const liveRes = await fetch(blob.url, { cache: "no-store" });
+    const fetchHeaders = {};
+    if (process.env.BLOB_READ_WRITE_TOKEN) fetchHeaders.Authorization = `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`;
+    const liveRes = await fetch(blob.url, { cache: "no-store", headers: fetchHeaders });
     if (!liveRes.ok) return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
     const text = await liveRes.text();
     res.setHeader("Content-Type", "application/json; charset=utf-8");
