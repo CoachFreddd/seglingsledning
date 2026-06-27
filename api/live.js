@@ -15,11 +15,11 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
   try {
-    const blob = await get(BLOB_PATH, { access: "private" });
-    if (!blob || blob.statusCode !== 200 || !blob.stream) {
+    const blob = await get(BLOB_PATH);
+    if (!blob || blob.statusCode !== 200) {
       return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
     }
-    const text = await new Response(blob.stream).text();
+    const text = blob.stream ? await new Response(blob.stream).text() : await fetch(blob.url).then((r) => r.text());
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     return res.status(200).send(text);
   } catch (error) {
