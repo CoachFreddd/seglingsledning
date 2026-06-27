@@ -15504,16 +15504,39 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const importBackupFile = async (file) => {
       if (!file) return;
       try {
-        const parsed = JSON.parse(await file.text());
-        if (!parsed || parsed.app !== "regattaapp") throw new Error("Fel filtyp");
-        if (parsed.regatta) setRegatta(parsed.regatta);
-        if (Array.isArray(parsed.boatColors)) setBoatColors(parsed.boatColors);
-        if (Array.isArray(parsed.teams)) setTeams(parsed.teams);
-        if (Array.isArray(parsed.schedule)) setSchedule(parsed.schedule);
-        if (parsed.results && typeof parsed.results === "object") setResults(parsed.results);
-        if (parsed.liveState) setLiveState(parsed.liveState);
-        if (parsed.syncSettings) setSyncSettings({ url: parsed.syncSettings.url || "", token: parsed.syncSettings.token || "" });
-        setBackupMessage("Backup importerad.");
+        let parsed = JSON.parse(await file.text());
+        if (parsed?.value && typeof parsed.value === "string") {
+          try {
+            parsed = JSON.parse(parsed.value);
+          } catch (e) {
+          }
+        }
+        const payload = parsed?.app === "regattaapp" ? parsed : parsed?.payload?.app === "regattaapp" ? parsed.payload : parsed?.data?.app === "regattaapp" ? parsed.data : parsed?.regatta || parsed?.teams || parsed?.schedule ? parsed : null;
+        if (!payload) throw new Error("Fel filtyp");
+        if (payload.regatta) setRegatta(payload.regatta);
+        if (Array.isArray(payload.boatColors)) setBoatColors(payload.boatColors);
+        if (Array.isArray(payload.teams)) setTeams(payload.teams.map((team) => ({
+          ...team,
+          crewCount: team.crewCount ?? (team.crew || []).length ?? 0,
+          crew: team.crew || []
+        })));
+        let scheduleMessage = "";
+        if (Array.isArray(payload.schedule)) {
+          if (payload.schedule.length > 0) {
+            setSchedule(payload.schedule);
+          } else if (schedule.length === 0) {
+            setSchedule([]);
+            scheduleMessage = " Filen innehöll inget schema.";
+          } else {
+            scheduleMessage = " Filen innehöll inget schema, så befintligt schema behölls.";
+          }
+        } else {
+          scheduleMessage = " Filen saknade schema, så befintligt schema behölls.";
+        }
+        if (payload.results && typeof payload.results === "object") setResults(payload.results);
+        if (payload.liveState) setLiveState(payload.liveState);
+        if (payload.syncSettings) setSyncSettings({ url: payload.syncSettings.url || "", token: payload.syncSettings.token || "" });
+        setBackupMessage("Backup importerad." + scheduleMessage);
       } catch (e) {
         setBackupMessage("Kunde inte läsa backupfilen.");
       }
