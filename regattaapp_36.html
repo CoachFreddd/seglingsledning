@@ -15446,7 +15446,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const [shared, setShared] = (0, import_react.useState)(null);
     const [publishing, setPublishing] = (0, import_react.useState)(false);
     const [localSavedAt, setLocalSavedAt] = (0, import_react.useState)(null);
-    const [syncSettings, setSyncSettings] = (0, import_react.useState)({ url: getDefaultSyncUrl(), token: "" });
+    const [syncSettings, setSyncSettings] = (0, import_react.useState)({ url: getDefaultSyncUrl(), token: ADMIN_PIN });
     const [syncState, setSyncState] = (0, import_react.useState)({ status: "local", pending: false, lastOk: null, error: "" });
     const [backupMessage, setBackupMessage] = (0, import_react.useState)("");
     const [adminPin, setAdminPin] = (0, import_react.useState)("");
@@ -15542,7 +15542,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         }
         if (payload.results && typeof payload.results === "object") setResults(payload.results);
         if (payload.liveState) setLiveState(payload.liveState);
-        if (payload.syncSettings) setSyncSettings({ url: payload.syncSettings.url || "", token: payload.syncSettings.token || "" });
+        if (payload.syncSettings) setSyncSettings({ url: payload.syncSettings.url || getDefaultSyncUrl(), token: payload.syncSettings.token || ADMIN_PIN });
         setBackupMessage("Backup importerad." + scheduleMessage);
       } catch (e) {
         setBackupMessage("Kunde inte läsa backupfilen.");
@@ -15629,7 +15629,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       setSyncState((s) => ({ ...s, status: "syncing", pending: true, error: "" }));
       try {
         const headers = { "Content-Type": "application/json" };
-        if (syncSettings.token) headers.Authorization = `Bearer ${syncSettings.token}`;
+        const uploadToken = syncSettings.token || ADMIN_PIN;
+        if (uploadToken) headers.Authorization = `Bearer ${uploadToken}`;
         const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload), cache: "no-store" });
         if (!res.ok) {
           let detail = "";
@@ -15678,7 +15679,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         const syncRaw = window.localStorage?.getItem(SYNC_SETTINGS_KEY);
         if (syncRaw) {
           const parsed = JSON.parse(syncRaw);
-          setSyncSettings({ url: parsed.url || "", token: parsed.token || "" });
+          setSyncSettings({ url: parsed.url || getDefaultSyncUrl(), token: parsed.token || ADMIN_PIN });
         }
         const queued = window.localStorage?.getItem(SYNC_QUEUE_KEY);
         if (queued) setSyncState((s) => ({ ...s, pending: true, status: "queued" }));
