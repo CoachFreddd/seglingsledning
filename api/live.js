@@ -1,4 +1,4 @@
-import { list } from "@vercel/blob";
+import { get } from "@vercel/blob";
 
 const BLOB_PATH = "regatta/live.json";
 
@@ -27,19 +27,17 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
   try {
-    const { blobs } = await list({ ...blobAuthOptions(), prefix: BLOB_PATH, limit: 1 });
-    const blob = (blobs || []).find((item) => item.pathname === BLOB_PATH) || (blobs || [])[0];
-    if (!blob?.url) {
+    const blob = await get(BLOB_PATH, blobAuthOptions());
+    if (!blob?.url && !blob?.stream) {
       return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
     }
-    const fetchHeaders = {};
-    if (process.env.BLOB_READ_WRITE_TOKEN) fetchHeaders.Authorization = `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`;
-    const liveRes = await fetch(blob.url, { cache: "no-store", headers: fetchHeaders });
-    if (!liveRes.ok) return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
-    const text = await liveRes.text();
+    const text = blob.stream ? await new Response(blob.stream).text() : await fetch(blob.url, { cache: "no-store" }).then((r) => {
+      if (!r.ok) throw new Error(`Blob HTTP ${r.status}`);
+      return r.text();
+    });
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     return res.status(200).send(text);
   } catch (error) {
-    return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
+    return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu", detail: error?.message || "" });
   }
 }
