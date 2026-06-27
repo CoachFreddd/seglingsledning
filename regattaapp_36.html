@@ -12944,7 +12944,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       if (key === "bf" || key.includes("svart")) return "flags/Flag-Svart.png";
       return null;
     })();
-    if (flagImage) {
+    if (false && flagImage) {
       const wide = key === "ap" || key.includes("likhet") || key.includes("repeater");
       return /* @__PURE__ */ import_react.default.createElement("img", { src: flagImage, width: wide ? Math.round(size * 1.35) : size, height: size, alt: String(name || "Flagga"), onError: (e) => {
         const img = e.currentTarget;
@@ -13515,15 +13515,58 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     printWindow.document.close();
     printWindow.focus();
   }
-  function mergePreservedResultHeats(oldSchedule, newSchedule, results) {
+  function stripScheduleRuntimeFields(heat) {
+    if (!heat) return null;
+    const { globalIdx, flightNum, flightIdx, ...rest } = heat;
+    return rest;
+  }
+  function getCompletedHeatIndices(results) {
+    return Object.keys(results || {}).map((key) => {
+      const match = key.match(/^g(\d+)$/);
+      return match ? Number(match[1]) : null;
+    }).filter((idx) => Number.isInteger(idx)).sort((a, b2) => a - b2);
+  }
+  function mergePreservedResultHeats(oldSchedule, newSchedule, results, teams = []) {
     const oldHeats = flattenScheduleHeats(oldSchedule || []);
+    const completed = new Set(getCompletedHeatIndices(results));
+    const teamById = new Map((teams || []).map((team) => [team.id, team]));
     const merged = (newSchedule || []).map((flight, fi) => flight.map((heat, hi) => {
       const globalIdx = (newSchedule || []).slice(0, fi).reduce((a, f) => a + f.length, 0) + hi;
+      if (!completed.has(globalIdx)) return heat;
       const result = results?.[`g${globalIdx}`];
-      if (!result) return heat;
       const preserved = result.heat || oldHeats.find((h) => h.globalIdx === globalIdx);
-      return preserved ? { ...preserved, globalIdx: void 0, flightNum: void 0, flightIdx: void 0, preservedResult: true } : heat;
+      return preserved ? { ...stripScheduleRuntimeFields(preserved), preservedResult: true } : heat;
     }));
+    merged.forEach((flight) => {
+      const usedTeamIds = /* @__PURE__ */ new Set();
+      flight.forEach((heat) => {
+        if (!heat?.preservedResult) return;
+        (heat.heatTeams || []).forEach((slot) => usedTeamIds.add(slot.team.id));
+      });
+      const replacementTeams = (teams || []).filter((team) => !usedTeamIds.has(team.id));
+      let replacementIdx = 0;
+      flight.forEach((heat) => {
+        if (heat?.preservedResult) return;
+        const nextSlots = [];
+        (heat.heatTeams || []).forEach((slot) => {
+          if (!usedTeamIds.has(slot.team.id)) {
+            usedTeamIds.add(slot.team.id);
+            nextSlots.push(slot);
+            return;
+          }
+          while (replacementIdx < replacementTeams.length && usedTeamIds.has(replacementTeams[replacementIdx].id)) replacementIdx++;
+          const replacement = replacementTeams[replacementIdx++];
+          if (replacement) {
+            usedTeamIds.add(replacement.id);
+            nextSlots.push({ ...slot, team: teamById.get(replacement.id) || replacement });
+          }
+        });
+        heat.heatTeams = nextSlots;
+      });
+      flight.forEach((heat) => {
+        heat.sitOut = (teams || []).filter((team) => !usedTeamIds.has(team.id));
+      });
+    });
     const newHeatCount = flattenScheduleHeats(newSchedule || []).length;
     let oldGlobalIdx = 0;
     (oldSchedule || []).forEach((flight) => {
@@ -13532,7 +13575,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
           const globalIdx = oldGlobalIdx++;
           if (globalIdx == null || globalIdx < newHeatCount || !results?.[`g${globalIdx}`]) return null;
           const savedHeat = results[`g${globalIdx}`].heat || heat;
-          return { ...savedHeat, globalIdx: void 0, flightNum: void 0, flightIdx: void 0, preservedResult: true };
+          return { ...stripScheduleRuntimeFields(savedHeat), preservedResult: true };
         })
         .filter(Boolean);
       if (extraPreserved.length) merged.push(extraPreserved);
@@ -13550,10 +13593,18 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const [drawInfo, setDrawInfo] = (0, import_react.useState)(null);
     const generated = schedule.length > 0;
     const flightsPerCycle = numBoats;
+    const completedHeatCount = getCompletedHeatIndices(results).length;
     const generate = () => {
+      if (generated && completedHeatCount > 0) {
+        const ok = window.confirm(`Det finns ${completedHeatCount} heat med sparade resultat.\n\nRegenerering låser redan seglade heat och bevarar deras matcher, båtar och resultat. Endast heat utan resultat lottas om.\n\nVill du fortsätta?`);
+        if (!ok) return;
+      } else if (generated) {
+        const ok = window.confirm("Vill du regenerera och lotta om hela schemat? Inga resultat finns sparade ännu.");
+        if (!ok) return;
+      }
       const drawnTeams = shuffleTeamsForDraw(teams);
       const s = generateRotationSchedule(drawnTeams, activeBoats, numRounds, { mode: scheduleMode, opponentVariation });
-      const merged = mergePreservedResultHeats(schedule, s, results);
+      const merged = mergePreservedResultHeats(schedule, s, results, teams);
       setDrawInfo({ at: (/* @__PURE__ */ new Date()).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), order: drawnTeams.map((t) => t.name) });
       setSchedule(merged);
       setEditMode(false);
@@ -13564,6 +13615,10 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const printSchedule = () => openPrintableSchedule(regatta, teams, schedule, matrix, allHeats, activeBoats);
     const handleCellClick = (teamId, heatGlobalIdx) => {
       if (!editMode) return;
+      if (results?.[`g${heatGlobalIdx}`]) {
+        window.alert("Heatet har sparat resultat och är låst.");
+        return;
+      }
       const boat = matrix[teamId] && matrix[teamId][heatGlobalIdx];
       if (!boat) return;
       if (!swapA) {
@@ -13637,7 +13692,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       ["B\xE5tar", numBoats],
       ["Heats totalt", generated ? totalHeats : numRounds * numBoats * Math.ceil((teams.length || 1) / numBoats)],
       ["Race / team", numRounds * numBoats]
-    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Minimera b\xE5tbyten" : "Allsvenskan-modell"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", opponentVariation ? " Extra motst\xE5ndarvariation \xE4r p\xE5." : "", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
+    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Minimera b\xE5tbyten" : "Allsvenskan-modell"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", opponentVariation ? " Extra motst\xE5ndarvariation \xE4r p\xE5." : "", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && completedHeatCount > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.36)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#FCD34D", marginBottom: 14, lineHeight: 1.5, fontWeight: 700 } }, completedHeatCount, " heat har sparade resultat och \xE4r l\xE5sta. Regenerering lottar bara om heat utan resultat."), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? completedHeatCount > 0 ? "Regenerera återstående heat" : "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
       setEditMode((e) => !e);
       setSwapA(null);
     }, style: {
@@ -13667,6 +13722,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       return /* @__PURE__ */ import_react.default.createElement("tr", { key: team.id, style: { background: ti % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" } }, /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "6px 10px", fontWeight: 600, fontSize: 13, color: "var(--c-text)", borderBottom: "1px solid var(--c-border)", whiteSpace: "nowrap" } }, ti + 1, ". ", team.name), flightGroups.map(
         (fg) => fg.heats.map((h, hi) => {
           const boat = teamMatrix[h.globalIdx];
+          const heatDone = !!results?.[`g${h.globalIdx}`];
           const isSelected = swapA && swapA.teamId === team.id && swapA.heatGlobalIdx === h.globalIdx;
           const isSameHeat = swapA && swapA.heatGlobalIdx === h.globalIdx && swapA.teamId !== team.id && boat;
           return /* @__PURE__ */ import_react.default.createElement(
@@ -13679,8 +13735,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
                 textAlign: "center",
                 borderBottom: "1px solid var(--c-border)",
                 borderLeft: hi === 0 ? "3px solid rgba(110,168,254,0.25)" : "1px solid rgba(255,255,255,0.04)",
-                cursor: editMode && boat ? "pointer" : "default",
-                background: isSelected ? "rgba(251,191,36,0.2)" : isSameHeat ? "rgba(251,191,36,0.08)" : "transparent",
+                cursor: editMode && boat && !heatDone ? "pointer" : "default",
+                background: heatDone ? "rgba(22,163,74,0.08)" : isSelected ? "rgba(251,191,36,0.2)" : isSameHeat ? "rgba(251,191,36,0.08)" : "transparent",
                 outline: isSelected ? "2px solid #FBBF24" : "none"
               }
             },
@@ -14667,14 +14723,14 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         slot.team.name,
         isOcs && /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10 } }, " OCS")
       );
-    })), ocsTeams.size > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 6 } }, "Markerade som OCS \u2192 po\xE4ngen s\xE4tts till ", heat.heatTeams.length + 1, "p vid sparning.")), finishOrder.length === heat.heatTeams.length && !saved && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: saveResult, style: { width: "100%", marginTop: 10 } }, "Spara Heat ", cur + 1), saved && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, background: "rgba(22,163,74,0.15)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "#4ade80", fontWeight: 700 } }, "\u2713 Sparat!"), cur < allHeats.length - 1 && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: () => goHeat(cur + 1) }, "N\xE4sta heat \u2192")))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { position: "sticky", top: 16 } }, phase === "running" && !racing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "2px solid var(--c-border)", borderRadius: 14, padding: "18px 16px", marginBottom: 12, textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", letterSpacing: "0.12em", marginBottom: 8 } }, "TID TILL START"), /* @__PURE__ */ import_react.default.createElement("div", { style: {
+    })), ocsTeams.size > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 6 } }, "Markerade som OCS \u2192 po\xE4ngen s\xE4tts till ", heat.heatTeams.length + 1, "p vid sparning.")), finishOrder.length === heat.heatTeams.length && !saved && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: saveResult, style: { width: "100%", marginTop: 10 } }, "Spara Heat ", cur + 1), saved && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, background: "rgba(22,163,74,0.15)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "#4ade80", fontWeight: 700 } }, "\u2713 Sparat!"), cur < allHeats.length - 1 && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: () => goHeat(cur + 1) }, "N\xE4sta heat \u2192")))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { position: "sticky", top: 16 } }, (phase === "idle" || phase === "running" && !racing) && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "2px solid var(--c-border)", borderRadius: 14, padding: "18px 16px", marginBottom: 12, textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", letterSpacing: "0.12em", marginBottom: 8 } }, "TID TILL START"), /* @__PURE__ */ import_react.default.createElement("div", { style: {
       fontSize: 72,
       fontWeight: 900,
       fontFamily: "monospace",
       letterSpacing: 2,
       lineHeight: 1,
-      color: sts <= 60 ? "#ef4444" : "var(--c-text)"
-    } }, fmtTime(Math.max(0, sts)))), racing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "#16a34a", border: "1px solid #15803d", borderRadius: 14, padding: "16px", marginBottom: 12, textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#000", letterSpacing: "0.1em", marginBottom: 6 } }, "RACE TID"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 36, fontWeight: 900, fontFamily: "monospace", letterSpacing: 2, color: "#000" } }, "+", fmtTime(eff - RACE_START_AT))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, background: "rgba(234,88,12,0.1)", border: "1px solid rgba(234,88,12,0.25)", borderRadius: 10, padding: "10px 12px", marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "Orange flagga", size: 56 }), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "#fb923c", fontWeight: 600, lineHeight: 1.4 } }, "Orange flagga alltid uppe \u2014 startlinjen")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "12px", marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", marginBottom: 10 } }, "SK\xC4RPT STARTREGEL"), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, (() => {
+      color: phase !== "idle" && sts <= 60 ? "#ef4444" : "var(--c-text)"
+    } }, fmtTime(phase === "idle" ? RACE_START_AT : Math.max(0, sts)))), phase === "idle" && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "12px", marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-cta", onClick: () => startSequence(0), style: { width: "100%", fontSize: 15 } }, "\u25B6 Starta (5 min)"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => startSequence(RACE_START_AT - 3 * 60 - 20), style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" } }, "\u26A1 Snabbstart \u2014 3:20"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => startSequence(RACE_START_AT - 5), style: { background: "#16a34a", color: "#001b08", border: "1px solid #15803d", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" } }, "\u26A1 Supersnabbstart \u2014 5 sek")), racing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "#16a34a", border: "1px solid #15803d", borderRadius: 14, padding: "16px", marginBottom: 12, textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#000", letterSpacing: "0.1em", marginBottom: 6 } }, "RACE TID"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 36, fontWeight: 900, fontFamily: "monospace", letterSpacing: 2, color: "#000" } }, "+", fmtTime(eff - RACE_START_AT))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, background: "rgba(234,88,12,0.1)", border: "1px solid rgba(234,88,12,0.25)", borderRadius: 10, padding: "10px 12px", marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "Orange flagga", size: 56 }), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "#fb923c", fontWeight: 600, lineHeight: 1.4 } }, "Orange flagga alltid uppe \u2014 startlinjen")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "12px", marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", marginBottom: 10 } }, "SK\xC4RPT STARTREGEL"), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, (() => {
       const active = penaltyFlagId === "none";
       const locked = phase === "running" && curPhase && !curPhase.isPrep;
       return /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => !locked && setPenaltyFlagId("none"), style: {
@@ -14719,7 +14775,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       alignItems: "center",
       justifyContent: "center",
       gap: 6
-    } }, soundOn ? "\u{1F50A} Ljud p\xE5" : "\u{1F507} Ljud av"), phase === "idle" && /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-cta", onClick: () => startSequence(0), style: { width: "100%", fontSize: 15 } }, "\u25B6 Starta (5 min)"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => startSequence(RACE_START_AT - 3 * 60 - 20), style: {
+    } }, soundOn ? "\u{1F50A} Ljud p\xE5" : "\u{1F507} Ljud av"), false && phase === "idle" && /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-cta", onClick: () => startSequence(0), style: { width: "100%", fontSize: 15 } }, "\u25B6 Starta (5 min)"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => startSequence(RACE_START_AT - 3 * 60 - 20), style: {
       background: "var(--c-surface2)",
       color: "var(--c-text)",
       border: "1px solid var(--c-border)",
@@ -15322,6 +15378,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const lastImmediatePublishRef = (0, import_react.useRef)(0);
     const remoteSyncTimerRef = (0, import_react.useRef)(null);
     const activeBoats = boatColors.slice(0, regatta.numBoats || 4);
+    const publicPageUrl = window.location.href.replace(/#.*$/, "") + "#resultat";
     const fallbackSchedule = teams.length >= 2 ? [[{
       heatTeams: teams.slice(0, activeBoats.length).map((t, i) => ({ team: t, boat: activeBoats[i] })),
       sitOut: teams.slice(activeBoats.length)
@@ -15658,7 +15715,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       background: publishing ? "#4ade80" : "var(--c-muted)",
       display: "inline-block",
       animation: publishing ? "pulse 1.5s infinite" : "none"
-    } }), publishing ? "LIVE" : "Publicera live"), /* @__PURE__ */ import_react.default.createElement("input", { ref: backupInputRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: (e) => importBackupFile(e.target.files?.[0]) }), /* @__PURE__ */ import_react.default.createElement("button", { onClick: exportBackup, style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Exportera"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => backupInputRef.current?.click(), style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Importera"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: resetLocalRegatta, style: { background: "rgba(248,113,113,0.12)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.35)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Nollställ"))), (localSavedAt || backupMessage) && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", padding: "5px 20px", fontSize: 11, color: "var(--c-muted)", fontWeight: 600 } }, localSavedAt ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Autosparad ", new Date(localSavedAt).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" }), " i den h\xE4r webbl\xE4saren") : null, backupMessage ? /* @__PURE__ */ import_react.default.createElement("span", { style: { marginLeft: localSavedAt ? 10 : 0, color: backupMessage.includes("inte") ? "#fca5a5" : "#4ade80" } }, backupMessage) : null), publishing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.08)", borderBottom: "1px solid rgba(74,222,128,0.2)", padding: "8px 20px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 600 } }, "\u{1F7E2} Regattan publiceras live"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)" } }, "Lokal publik sida: ", /* @__PURE__ */ import_react.default.createElement("code", { style: { background: "var(--c-surface2)", borderRadius: 4, padding: "1px 5px" } }, "#resultat")), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: syncState.status === "ok" ? "#4ade80" : syncState.status === "failed" || syncState.status === "offline" ? "#fca5a5" : "var(--c-muted)", fontWeight: 700 } }, syncSettings.url ? syncState.status === "ok" ? `Synkad ${new Date(syncState.lastOk).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}` : syncState.status === "syncing" ? "Synkar..." : syncState.status === "offline" ? "Offline - köad" : syncState.status === "failed" ? syncState.error ? `Synk misslyckades: ${syncState.error}` : "Synk misslyckades - köad" : "Väntar i synkkö" : "Ingen serveradress - sparar lokalt")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", display: "flex", overflowX: "auto" } }, TABS.map((t, i) => /* @__PURE__ */ import_react.default.createElement("button", { key: i, onClick: () => setTab(i), style: {
+    } }), publishing ? "LIVE" : "Publicera live"), /* @__PURE__ */ import_react.default.createElement("input", { ref: backupInputRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: (e) => importBackupFile(e.target.files?.[0]) }), /* @__PURE__ */ import_react.default.createElement("button", { onClick: exportBackup, style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Exportera"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => backupInputRef.current?.click(), style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Importera"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: resetLocalRegatta, style: { background: "rgba(248,113,113,0.12)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.35)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Nollställ"))), (localSavedAt || backupMessage) && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", padding: "5px 20px", fontSize: 11, color: "var(--c-muted)", fontWeight: 600 } }, localSavedAt ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Autosparad ", new Date(localSavedAt).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" }), " i den h\xE4r webbl\xE4saren") : null, backupMessage ? /* @__PURE__ */ import_react.default.createElement("span", { style: { marginLeft: localSavedAt ? 10 : 0, color: backupMessage.includes("inte") ? "#fca5a5" : "#4ade80" } }, backupMessage) : null), publishing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.08)", borderBottom: "1px solid rgba(74,222,128,0.2)", padding: "8px 20px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 600 } }, "\u{1F7E2} Regattan publiceras live"), /* @__PURE__ */ import_react.default.createElement("a", { href: publicPageUrl, target: "_blank", rel: "noopener noreferrer", style: { background: "var(--c-surface2)", color: "#4ade80", border: "1px solid rgba(74,222,128,0.35)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 800, textDecoration: "none" } }, "\xD6ppna livesidan"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: syncState.status === "ok" ? "#4ade80" : syncState.status === "failed" || syncState.status === "offline" ? "#fca5a5" : "var(--c-muted)", fontWeight: 700 } }, syncSettings.url ? syncState.status === "ok" ? `Synkad ${new Date(syncState.lastOk).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}` : syncState.status === "syncing" ? "Synkar..." : syncState.status === "offline" ? "Offline - köad" : syncState.status === "failed" ? syncState.error ? `Synk misslyckades: ${syncState.error}` : "Synk misslyckades - köad" : "Väntar i synkkö" : "Ingen serveradress - sparar lokalt")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", display: "flex", overflowX: "auto" } }, TABS.map((t, i) => /* @__PURE__ */ import_react.default.createElement("button", { key: i, onClick: () => setTab(i), style: {
       background: "none",
       border: "none",
       cursor: "pointer",
