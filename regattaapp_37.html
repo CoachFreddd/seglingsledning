@@ -15548,8 +15548,13 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   }
   function App() {
     const adminParam = new URLSearchParams(window.location.search || "").get("admin");
+    let forcedAdmin = false;
+    try {
+      forcedAdmin = window.localStorage?.getItem("regattaapp-force-admin-v1") === "1" || window.sessionStorage?.getItem("regattaapp-force-admin-v1") === "1";
+    } catch (e) {
+    }
     const adminPath = /(^|\/)ledning(\.html)?$/i.test(window.location.pathname || "");
-    const isAdminRoute = window.location.hash === ADMIN_HASH || adminParam === "1" || adminParam === "true" || adminPath;
+    const isAdminRoute = window.location.hash === ADMIN_HASH || adminParam === "1" || adminParam === "true" || adminPath || forcedAdmin;
     const isPublic = !isAdminRoute;
     const [tab, setTab] = (0, import_react.useState)(0);
     const [regatta, setRegatta] = (0, import_react.useState)({ name: "", startDate: "", endDate: "", firstStart: "", lastStart: "", dayTimes: {}, date: "", place: "", numBoats: 4, open: true });
@@ -16012,6 +16017,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const lockAdmin = () => {
       try {
         window.localStorage?.removeItem(ADMIN_UNLOCK_KEY);
+        window.localStorage?.removeItem("regattaapp-force-admin-v1");
+        window.sessionStorage?.removeItem("regattaapp-force-admin-v1");
       } catch (e) {
       }
       setAdminUnlocked(false);
