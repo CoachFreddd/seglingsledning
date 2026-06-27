@@ -15826,10 +15826,13 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     (0, import_react.useEffect)(() => {
       if (!isPublic) return;
       const load = async () => {
-        try {
-          const r = await window.storage.get(STORAGE_KEY, true);
-          if (r?.value) setShared(JSON.parse(r.value));
-        } catch (e) {
+        const useLocalPreview = window.location.protocol === "file:" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+        if (useLocalPreview) {
+          try {
+            const r = await window.storage.get(STORAGE_KEY, true);
+            if (r?.value) setShared(JSON.parse(r.value));
+          } catch (e) {
+          }
         }
         if (window.location.protocol === "http:" || window.location.protocol === "https:") {
           try {
