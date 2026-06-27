@@ -3,6 +3,18 @@ import { put } from "@vercel/blob";
 const BLOB_PATH = "regatta/live.json";
 const MAX_BODY_BYTES = 1024 * 1024;
 
+function blobAuthOptions() {
+  const options = {};
+  if (process.env.BLOB_STORE_ID && process.env.VERCEL_OIDC_TOKEN) {
+    options.storeId = process.env.BLOB_STORE_ID;
+    options.oidcToken = process.env.VERCEL_OIDC_TOKEN;
+  }
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    options.token = process.env.BLOB_READ_WRITE_TOKEN;
+  }
+  return options;
+}
+
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -42,6 +54,7 @@ export default async function handler(req, res) {
     }
     const body = JSON.stringify({ ...payload, serverSavedAt: Date.now() });
     const blob = await put(BLOB_PATH, body, {
+      ...blobAuthOptions(),
       access: "public",
       addRandomSuffix: false,
       allowOverwrite: true,

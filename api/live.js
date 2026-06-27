@@ -2,6 +2,18 @@ import { get } from "@vercel/blob";
 
 const BLOB_PATH = "regatta/live.json";
 
+function blobAuthOptions() {
+  const options = {};
+  if (process.env.BLOB_STORE_ID && process.env.VERCEL_OIDC_TOKEN) {
+    options.storeId = process.env.BLOB_STORE_ID;
+    options.oidcToken = process.env.VERCEL_OIDC_TOKEN;
+  }
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    options.token = process.env.BLOB_READ_WRITE_TOKEN;
+  }
+  return options;
+}
+
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -15,7 +27,7 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
   try {
-    const blob = await get(BLOB_PATH);
+    const blob = await get(BLOB_PATH, blobAuthOptions());
     if (!blob || blob.statusCode !== 200) {
       return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
     }
