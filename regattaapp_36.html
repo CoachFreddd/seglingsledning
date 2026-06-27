@@ -13722,7 +13722,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     }
     return START_PHASES[0];
   }
-  function StartView({ regatta, teams, schedule, results, setResults, onLiveUpdate, initialLiveState }) {
+  function StartView({ regatta, teams, schedule, results, setResults, onLiveUpdate, onResultSaved, initialLiveState }) {
     const allHeats = schedule.flatMap(
       (flight, fi) => flight.map((heat2, hi) => ({
         ...heat2,
@@ -14175,15 +14175,18 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     };
     const saveResult = () => {
       const result = buildCurrentResult();
-      setResults((p) => ({
-        ...p,
+      const live = { liveHeat: activeIdx, livePhase: "idle", liveEff: eff, livePostponed: false, liveFalseStart: null, livePenaltyFlag: penaltyFlagId };
+      const nextResults = {
+        ...results,
         [`g${activeIdx}`]: result
-      }));
+      };
+      setResults(nextResults);
       setSaved(true);
       setPhase("idle");
       setCur(activeIdx);
       setActiveHeatIdx(null);
-      if (onLiveUpdate) onLiveUpdate({ liveHeat: activeIdx, livePhase: "idle", liveEff: eff, livePostponed: false, liveFalseStart: null, livePenaltyFlag: penaltyFlagId });
+      if (onLiveUpdate) onLiveUpdate(live);
+      if (onResultSaved) onResultSaved(nextResults, live);
     };
     const goHeat = (idx) => {
       if (phase !== "idle" || activeHeatIdx != null) {
@@ -14215,15 +14218,15 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       if (finishOrder.length !== heat.heatTeams.length) return;
       const timer = setTimeout(() => {
         const result = buildCurrentResult();
-        setResults((prev) => {
-          if (prev[`g${activeIdx}`]) return prev;
-          return { ...prev, [`g${activeIdx}`]: result };
-        });
+        const live = { liveHeat: activeIdx, livePhase: "idle", liveEff: eff, livePostponed: false, liveFalseStart: null, livePenaltyFlag: penaltyFlagId };
+        const nextResults = results[`g${activeIdx}`] ? results : { ...results, [`g${activeIdx}`]: result };
+        setResults(nextResults);
         setSaved(true);
         setPhase("idle");
         setCur(activeIdx);
         setActiveHeatIdx(null);
-        if (onLiveUpdate) onLiveUpdate({ liveHeat: activeIdx, livePhase: "idle", liveEff: eff, livePostponed: false, liveFalseStart: null, livePenaltyFlag: penaltyFlagId });
+        if (onLiveUpdate) onLiveUpdate(live);
+        if (onResultSaved) onResultSaved(nextResults, live);
         if (activeIdx < allHeats.length - 1) {
           setTimeout(() => {
             clearInterval(timerRef.current);
@@ -14248,7 +14251,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         }
       }, 350);
       return () => clearTimeout(timer);
-    }, [finishOrder, finishTimes, slotOverrides, ocsTeams, saved, activeIdx, heat]);
+    }, [finishOrder, finishTimes, slotOverrides, ocsTeams, saved, activeIdx, heat, results, onLiveUpdate, onResultSaved]);
     const renderOcsPanel = () => {
       if (falseStart !== "individual" || saved || !heat?.heatTeams?.length) return null;
       return /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, background: "rgba(124,45,18,0.15)", border: "1px solid rgba(124,45,18,0.5)", borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#fdba74", marginBottom: 4 } }, "Individuell tjuvstart \u2014 tryck p\xE5 b\xE5ten som \xE4r OCS:"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginBottom: 8, lineHeight: 1.45 } }, "Tryck igen n\xE4r b\xE5ten \xE4r friad. Markerade b\xE5tar som inte v\xE4nder tillbaka f\xE5r sistaplats + 1p vid sparning."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, heat.heatTeams.map((slot) => {
@@ -15316,6 +15319,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const backupInputRef = (0, import_react.useRef)(null);
     const loadedLocalRef = (0, import_react.useRef)(false);
     const lastRemoteSyncRef = (0, import_react.useRef)(0);
+    const lastImmediatePublishRef = (0, import_react.useRef)(0);
     const remoteSyncTimerRef = (0, import_react.useRef)(null);
     const activeBoats = boatColors.slice(0, regatta.numBoats || 4);
     const fallbackSchedule = teams.length >= 2 ? [[{
@@ -15551,17 +15555,26 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         clearInterval(id);
       };
     }, [isPublic, syncSettings.url, syncSettings.token]);
-    const publish = async (extra = {}) => {
+    const publish = async (extra = {}, options = {}) => {
       const payload = makeSharedPayload(extra);
       try {
         await window.storage.set(STORAGE_KEY, JSON.stringify(payload), true);
       } catch (e) {
       }
       queueSyncPayload(payload);
-      scheduleRemoteSync(payload);
+      if (options.immediate) {
+        lastImmediatePublishRef.current = Date.now();
+        if (remoteSyncTimerRef.current) {
+          clearTimeout(remoteSyncTimerRef.current);
+          remoteSyncTimerRef.current = null;
+        }
+        attemptRemoteSync(payload);
+      } else {
+        scheduleRemoteSync(payload);
+      }
     };
     (0, import_react.useEffect)(() => {
-      if (!isPublic && publishing) publish();
+      if (!isPublic && publishing && Date.now() - lastImmediatePublishRef.current > 750) publish();
     }, [results, liveState, publishing]);
     (0, import_react.useEffect)(() => {
       if (!isPublic) return;
@@ -15662,6 +15675,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         return /* @__PURE__ */ import_react.default.createElement(StartView, { regatta, teams, schedule: sched, results, setResults, initialLiveState: liveState, onLiveUpdate: (live) => {
           setLiveState(live);
           if (publishing) publish(live);
+        }, onResultSaved: (nextResults, live) => {
+          if (publishing) publish({ ...live, results: nextResults }, { immediate: true });
         } });
       } catch (e) {
         return /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: 30, color: "#f87171", fontFamily: "monospace", fontSize: 13, background: "#1a1a2e", minHeight: 200, borderRadius: 12 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontWeight: 800, fontSize: 16, marginBottom: 12 } }, "StartView kraschade:"), /* @__PURE__ */ import_react.default.createElement("div", { style: { marginBottom: 8 } }, e.message), /* @__PURE__ */ import_react.default.createElement("pre", { style: { fontSize: 11, opacity: 0.7, whiteSpace: "pre-wrap" } }, e.stack));
