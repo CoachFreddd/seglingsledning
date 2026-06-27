@@ -15520,18 +15520,24 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         }
         const payload = parsed?.app === "regattaapp" ? parsed : parsed?.payload?.app === "regattaapp" ? parsed.payload : parsed?.data?.app === "regattaapp" ? parsed.data : parsed?.regatta || parsed?.teams || parsed?.schedule ? parsed : null;
         if (!payload) throw new Error("Fel filtyp");
-        if (payload.regatta) setRegatta(payload.regatta);
-        if (Array.isArray(payload.boatColors)) setBoatColors(payload.boatColors);
-        if (Array.isArray(payload.teams)) setTeams(payload.teams.map((team) => ({
+        const importedRegatta = payload.regatta || regatta;
+        const importedBoatColors = Array.isArray(payload.boatColors) ? payload.boatColors : boatColors;
+        const importedTeams = Array.isArray(payload.teams) ? payload.teams.map((team) => ({
           ...team,
           crewCount: team.crewCount ?? (team.crew || []).length ?? 0,
           crew: team.crew || []
-        })));
+        })) : teams;
+        if (payload.regatta) setRegatta(importedRegatta);
+        if (Array.isArray(payload.boatColors)) setBoatColors(importedBoatColors);
+        if (Array.isArray(payload.teams)) setTeams(importedTeams);
         let scheduleMessage = "";
+        let importedSchedule = schedule;
         if (Array.isArray(payload.schedule)) {
           if (payload.schedule.length > 0) {
+            importedSchedule = payload.schedule;
             setSchedule(payload.schedule);
           } else if (schedule.length === 0) {
+            importedSchedule = [];
             setSchedule([]);
             scheduleMessage = " Filen innehöll inget schema.";
           } else {
@@ -15540,10 +15546,33 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         } else {
           scheduleMessage = " Filen saknade schema, så befintligt schema behölls.";
         }
-        if (payload.results && typeof payload.results === "object") setResults(payload.results);
-        if (payload.liveState) setLiveState(payload.liveState);
+        const importedResults = payload.results && typeof payload.results === "object" ? payload.results : results;
+        const importedLiveState = payload.liveState || liveState || {};
+        if (payload.results && typeof payload.results === "object") setResults(importedResults);
+        if (payload.liveState) setLiveState(importedLiveState);
         if (payload.syncSettings) setSyncSettings({ url: payload.syncSettings.url || getDefaultSyncUrl(), token: payload.syncSettings.token || ADMIN_PIN });
-        setBackupMessage("Backup importerad." + scheduleMessage);
+        if (importedRegatta && Array.isArray(importedTeams) && Array.isArray(importedSchedule) && importedSchedule.length > 0) {
+          const livePayload = {
+            regatta: importedRegatta,
+            teams: importedTeams,
+            schedule: importedSchedule,
+            results: importedResults,
+            boatColors: importedBoatColors,
+            ...importedLiveState,
+            livePhase: importedLiveState.livePhase || "idle",
+            updatedAt: Date.now()
+          };
+          try {
+            await window.storage.set(STORAGE_KEY, JSON.stringify(livePayload), true);
+          } catch (e) {
+          }
+          queueSyncPayload(livePayload);
+          setPublishing(true);
+          const ok = await attemptRemoteSync(livePayload);
+          setBackupMessage("Backup importerad." + scheduleMessage + (ok ? " Live publicerad." : " Live ligger i synkkö - kontrollera synkmeddelandet."));
+        } else {
+          setBackupMessage("Backup importerad." + scheduleMessage);
+        }
       } catch (e) {
         setBackupMessage("Kunde inte läsa backupfilen.");
       }
