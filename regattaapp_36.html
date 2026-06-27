@@ -13540,6 +13540,65 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     printWindow.document.close();
     printWindow.focus();
   }
+  function openPrintableFinalResults(regatta, teams, schedule, results, ranked, scoredHeats, raceByTeamHeat) {
+    const title = regatta?.name || "Regatta";
+    const dateLine = [regatta?.place, formatDateRange(regatta)].filter(Boolean).join(" · ");
+    const finalData = getFinalResultData(regatta, teams, schedule, results);
+    const fmtPts = (value) => Number(value || 0) % 1 === 0 ? Number(value || 0).toFixed(0) : Number(value || 0).toFixed(1);
+    const crewText = (team) => getCrewNames(team).join(", ");
+    const raceCols = (scoredHeats || []).map((heat) => `<th>H${heat.globalIdx + 1}</th>`).join("");
+    const rows = (ranked || []).map((entry, i) => {
+      const raceCells = (scoredHeats || []).map((heat) => {
+        const race = raceByTeamHeat?.[entry.team.id]?.[heat.globalIdx];
+        if (!race) return `<td class="muted">-</td>`;
+        const label = race.code && race.code !== "fin" ? race.code : `#${race.place}`;
+        return `<td><strong>${escapeHtml(label)}</strong><span>${escapeHtml(fmtPts(race.pts))}p</span></td>`;
+      }).join("");
+      const crew = crewText(entry.team);
+      return `<tr><td class="place">${i + 1}</td><td class="team"><strong>${escapeHtml(entry.team.name)}</strong>${crew ? `<span>${escapeHtml(crew)}</span>` : ""}</td><td class="points">${escapeHtml(fmtPts(entry.points))}p</td>${raceCells}</tr>`;
+    }).join("");
+    const finalHtml = finalData ? `<section class="final"><h2>${finalData.result ? "Finalresultat" : "Till final"}</h2><table><thead><tr><th>Grundserie</th><th>Besättning</th><th>Med till final</th>${finalData.result ? "<th>Final</th><th>Totalt</th>" : ""}</tr></thead><tbody>${finalData.rows.map((row, i) => {
+      const finalText = !finalData.result ? "" : row.code && row.code !== "fin" ? row.code : `#${row.finalPlace}`;
+      const crew = crewText(row.team);
+      return `<tr><td class="place">${escapeHtml(row.seriesPlace || i + 1)}</td><td class="team"><strong>${escapeHtml(row.team.name)}</strong>${crew ? `<span>${escapeHtml(crew)}</span>` : ""}</td><td class="points">${escapeHtml(fmtPts(row.seedPoints))}p</td>${finalData.result ? `<td>${escapeHtml(finalText)}${row.finalPoints != null ? ` / ${escapeHtml(fmtPts(row.finalPoints))}p` : ""}</td><td class="points">${escapeHtml(fmtPts(row.totalPoints))}p</td>` : ""}</tr>`;
+    }).join("")}</tbody></table></section>` : "";
+    const filename = `${(title || "regatta").toLowerCase().replace(/[^a-z0-9åäö_-]+/gi, "-").replace(/^-+|-+$/g, "") || "regatta"}_slutstallning`;
+    const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${escapeHtml(filename)}</title><style>
+      @page { size: A4 landscape; margin: 12mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:#111827; background:#fff; margin:0; padding:24px; }
+      header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; border-bottom:3px solid #111827; padding-bottom:13px; margin-bottom:16px; }
+      h1 { font-size:26px; line-height:1.1; margin:0 0 5px; }
+      h2 { font-size:15px; margin:18px 0 8px; letter-spacing:.04em; text-transform:uppercase; }
+      .meta { color:#4b5563; font-size:12px; font-weight:700; }
+      .badge { border:2px solid #111827; border-radius:999px; padding:7px 12px; font-size:11px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+      table { width:100%; border-collapse:collapse; table-layout:auto; font-size:10.5px; }
+      th,td { border:1px solid #d1d5db; padding:6px 7px; text-align:center; vertical-align:middle; }
+      thead th { background:#e0f2fe; color:#0f172a; font-weight:900; }
+      tbody tr:nth-child(even) td { background:#f8fafc; }
+      td.place { width:44px; font-size:14px; font-weight:900; }
+      td.team, th.team { text-align:left; min-width:180px; }
+      td.team strong { display:block; font-size:11.5px; }
+      td.team span { display:block; color:#64748b; font-size:9.5px; margin-top:2px; }
+      td.points { font-weight:900; color:#0f766e; white-space:nowrap; }
+      td span { display:block; color:#64748b; font-size:9px; margin-top:1px; }
+      .muted { color:#94a3b8; }
+      .actions { margin:14px 0; display:flex; gap:8px; align-items:center; }
+      button { border:0; background:#0f766e; color:#fff; border-radius:8px; padding:10px 14px; font-weight:900; cursor:pointer; }
+      .hint { color:#64748b; font-size:12px; font-weight:600; }
+      footer { margin-top:14px; color:#64748b; font-size:10px; display:flex; justify-content:space-between; border-top:1px solid #e5e7eb; padding-top:8px; }
+      @media print { body { padding:0; } .actions { display:none; } }
+    </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Slutställning")} · ${ranked.length} besättningar · ${scoredHeats.length} heat räknas</div></div><div class="badge">Slutställning</div></header><div class="actions"><button onclick="window.print()">Spara som PDF</button><span class="hint">Välj “Spara som PDF” i utskriftsrutan.</span></div>${finalHtml}<h2>Slutställning</h2><table><thead><tr><th>Plac</th><th class="team">Besättning</th><th>Poäng</th>${raceCols}</tr></thead><tbody>${rows}</tbody></table><footer><span>${escapeHtml(title)}</span><span>Skapad ${new Date().toLocaleString("sv-SE")}</span></footer></body></html>`;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      window.alert("Webbläsaren blockerade PDF-fönstret. Tillåt popups för appen och prova igen.");
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+  }
   function stripScheduleRuntimeFields(heat) {
     if (!heat) return null;
     const { globalIdx, flightNum, flightIdx, ...rest } = heat;
@@ -15302,7 +15361,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         finalMode: false
       }));
     };
-    return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Avsluta regatta" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", lineHeight: 1.5 } }, regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Regattan \xE4r avslutad. Resultatlistan r\xE4knar ", finalizedFlightCount, " hela flight", finalizedFlightCount === 1 ? "" : "er", ".") : completedFlightCount > 0 ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Det finns ", completedFlightCount, " hel", completedFlightCount === 1 ? "" : "a", " flight", completedFlightCount === 1 ? "" : "er", " klar", completedFlightCount === 1 ? "" : "a", ". Vid avslut kan du skapa finalheat med toppbesättningarna.") : "Ingen hel flight \xE4r klar \xE4nnu."), regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setRegatta((r) => ({ ...r, finalized: false, finalizedFlightCount: null, finalizedAt: null, finalMode: false, finalHeatGlobalIdx: null, finalSeeds: null })), style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "\xD6ppna igen") : /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", disabled: completedFlightCount === 0, onClick: finishRegattaFromStandings }, "Avsluta regatta"))), /* @__PURE__ */ import_react.default.createElement(Sect, { title: `${regatta?.finalized ? "Slutst\xE4llning" : "Live-st\xE4llning"} \u2014 ${completed}/${regatta?.finalized ? scoredHeats.length : total} heat r\xE4knas` }, ranked.length === 0 ? /* @__PURE__ */ import_react.default.createElement("p", { style: { color: "var(--c-muted)", fontSize: 14 } }, "Inga resultat \xE4nnu.") : /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, ranked.map((entry, i) => /* @__PURE__ */ import_react.default.createElement("div", { key: entry.team.id, style: {
+    const printFinalPdf = () => openPrintableFinalResults(regatta, teams, schedule, results, ranked, scoredHeats, raceByTeamHeat);
+    return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Avsluta regatta" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", lineHeight: 1.5 } }, regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Regattan \xE4r avslutad. Resultatlistan r\xE4knar ", finalizedFlightCount, " hela flight", finalizedFlightCount === 1 ? "" : "er", ".") : completedFlightCount > 0 ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Det finns ", completedFlightCount, " hel", completedFlightCount === 1 ? "" : "a", " flight", completedFlightCount === 1 ? "" : "er", " klar", completedFlightCount === 1 ? "" : "a", ". Vid avslut kan du skapa finalheat med toppbesättningarna.") : "Ingen hel flight \xE4r klar \xE4nnu."), regatta?.finalized ? /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setRegatta((r) => ({ ...r, finalized: false, finalizedFlightCount: null, finalizedAt: null, finalMode: false, finalHeatGlobalIdx: null, finalSeeds: null })), style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "\xD6ppna igen") : /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", disabled: completedFlightCount === 0, onClick: finishRegattaFromStandings }, "Avsluta regatta"))), /* @__PURE__ */ import_react.default.createElement(Sect, { title: `${regatta?.finalized ? "Slutst\xE4llning" : "Live-st\xE4llning"} \u2014 ${completed}/${regatta?.finalized ? scoredHeats.length : total} heat r\xE4knas` }, ranked.length > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: printFinalPdf, style: { background: "var(--c-accent)", color: "#08111f", border: "0", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" } }, "Skapa PDF")), ranked.length === 0 ? /* @__PURE__ */ import_react.default.createElement("p", { style: { color: "var(--c-muted)", fontSize: 14 } }, "Inga resultat \xE4nnu.") : /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, ranked.map((entry, i) => /* @__PURE__ */ import_react.default.createElement("div", { key: entry.team.id, style: {
       display: "flex",
       alignItems: "center",
       gap: 10,
