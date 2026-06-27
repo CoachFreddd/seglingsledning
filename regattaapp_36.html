@@ -13461,6 +13461,60 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     });
     return { allHeats, matrix };
   }
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+  }
+  function openPrintableSchedule(regatta, teams, schedule, matrix, allHeats, boatColors) {
+    const title = regatta?.name || "Seglingsschema";
+    const dateLine = [regatta?.place, formatDateRange(regatta)].filter(Boolean).join(" · ");
+    const flightHeaders = (schedule || []).map((flight, fi) => `<th class="flight" colspan="${flight.length}">Flight ${fi + 1}</th>`).join("");
+    const heatHeaders = (schedule || []).flatMap((flight, fi) => flight.map((_, hi) => {
+      const heatNo = (schedule || []).slice(0, fi).reduce((sum, f) => sum + f.length, 0) + hi + 1;
+      return `<th>H${heatNo}</th>`;
+    })).join("");
+    const rows = (teams || []).map((team, idx) => {
+      const cells = allHeats.map((heat) => {
+        const boat = matrix?.[team.id]?.[heat.globalIdx];
+        if (!boat) return `<td class="empty">-</td>`;
+        return `<td><span class="boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span></td>`;
+      }).join("");
+      return `<tr><th class="team">${idx + 1}. ${escapeHtml(team.name)}</th>${cells}</tr>`;
+    }).join("");
+    const legend = (boatColors || []).map((boat) => `<span class="legend-boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span>`).join("");
+    const heatDetails = allHeats.map((heat) => `<div class="heat"><h3>Flight ${heat.flightNum + 1} · Heat ${heat.globalIdx + 1}</h3>${heat.heatTeams.map((slot) => `<div><span class="boat small" style="background:${escapeHtml(slot.boat.bg)};color:${escapeHtml(slot.boat.text)}">${escapeHtml(slot.boat.label)}</span> ${escapeHtml(slot.team.name)}</div>`).join("")}</div>`).join("");
+    const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${escapeHtml(title)} - schema</title><style>
+      @page { size: A4 landscape; margin: 10mm; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:#111827; background:#fff; margin:0; padding:24px; }
+      header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; border-bottom:2px solid #111827; padding-bottom:12px; margin-bottom:14px; }
+      h1 { font-size:24px; line-height:1.1; margin:0 0 5px; }
+      .meta { color:#4b5563; font-size:12px; font-weight:600; }
+      .legend { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width:45%; }
+      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:3px 8px; font-size:11px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; text-align:center; }
+      .boat.small { font-size:10px; min-width:44px; margin-right:5px; }
+      table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; page-break-inside:auto; }
+      th,td { border:1px solid #d1d5db; padding:5px 4px; text-align:center; vertical-align:middle; }
+      thead th { background:#eef2ff; color:#111827; font-weight:900; }
+      thead .flight { background:#dbeafe; font-size:11px; }
+      th.team { position:sticky; left:0; background:#fff; text-align:left; min-width:130px; width:130px; font-size:11px; }
+      td.empty { color:#9ca3af; background:#f9fafb; }
+      .heat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:18px; page-break-before:auto; }
+      .heat { border:1px solid #d1d5db; border-radius:6px; padding:8px; break-inside:avoid; font-size:11px; }
+      .heat h3 { margin:0 0 6px; font-size:11px; color:#1d4ed8; }
+      .actions { margin:14px 0; }
+      button { border:0; background:#1d4ed8; color:#fff; border-radius:7px; padding:9px 14px; font-weight:800; cursor:pointer; }
+      @media print { body { padding:0; } .actions { display:none; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
+    </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="window.print()">Skriv ut</button></div><table><thead><tr><th rowspan="2" class="team">Team</th>${flightHeaders}</tr><tr>${heatHeaders}</tr></thead><tbody>${rows}</tbody></table><section class="heat-grid">${heatDetails}</section></body></html>`;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      window.alert("Webbläsaren blockerade utskriftsfönstret. Tillåt popups för appen och prova igen.");
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+  }
   function mergePreservedResultHeats(oldSchedule, newSchedule, results) {
     const oldHeats = flattenScheduleHeats(oldSchedule || []);
     const merged = (newSchedule || []).map((flight, fi) => flight.map((heat, hi) => {
@@ -13507,6 +13561,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     };
     const { allHeats, matrix } = buildHeatMatrix(schedule, teams);
     const totalHeats = allHeats.length;
+    const printSchedule = () => openPrintableSchedule(regatta, teams, schedule, matrix, allHeats, activeBoats);
     const handleCellClick = (teamId, heatGlobalIdx) => {
       if (!editMode) return;
       const boat = matrix[teamId] && matrix[teamId][heatGlobalIdx];
@@ -13582,7 +13637,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       ["B\xE5tar", numBoats],
       ["Heats totalt", generated ? totalHeats : numRounds * numBoats * Math.ceil((teams.length || 1) / numBoats)],
       ["Race / team", numRounds * numBoats]
-    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Minimera b\xE5tbyten" : "Allsvenskan-modell"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", opponentVariation ? " Extra motst\xE5ndarvariation \xE4r p\xE5." : "", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
+    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Minimera b\xE5tbyten" : "Allsvenskan-modell"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", opponentVariation ? " Extra motst\xE5ndarvariation \xE4r p\xE5." : "", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
       setEditMode((e) => !e);
       setSwapA(null);
     }, style: {
