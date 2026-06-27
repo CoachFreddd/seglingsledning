@@ -13149,6 +13149,16 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     }
     return repeats;
   }
+  function scorePairSpread(heatTeams, pairCounts) {
+    let score = 0;
+    for (let i = 0; i < heatTeams.length; i++) {
+      for (let j = i + 1; j < heatTeams.length; j++) {
+        const count = pairCounts[pairKey(heatTeams[i].team.id, heatTeams[j].team.id)] || 0;
+        score += count === 0 ? -180 : count * 1600 + count * count * 350;
+      }
+    }
+    return score;
+  }
   function registerPairs(heatTeams, pairCounts) {
     for (let i = 0; i < heatTeams.length; i++) {
       for (let j = i + 1; j < heatTeams.length; j++) {
@@ -13203,6 +13213,70 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   function makeFlightFromOrder(order, teams, boats, flightIdx, prevBoatByTeam, pairCounts, options) {
     const b = boats.length;
     const heatSizes = getBalancedHeatSizes(order.length, b);
+    const spreadOpponents = options.opponentVariation || options.mode === "allsvenskan" || options.mode === "boatChanges";
+    if (spreadOpponents) {
+      const orderedTeams = order.map((teamIdx) => teams[teamIdx]).filter(Boolean);
+      const pairLoad = (team) => {
+        let total = 0;
+        orderedTeams.forEach((other) => {
+          if (other.id !== team.id) total += pairCounts[pairKey(team.id, other.id)] || 0;
+        });
+        return total;
+      };
+      const scoreAddToHeat = (team, heat) => {
+        let score = heat.length * 2;
+        heat.forEach((other) => {
+          const count = pairCounts[pairKey(team.id, other.id)] || 0;
+          score += count === 0 ? -180 : count * 1600 + count * count * 350;
+        });
+        return score;
+      };
+      const scoreHeats = (heats) => {
+        let score = 0;
+        heats.forEach((heat) => {
+          for (let i = 0; i < heat.length; i++) {
+            for (let j = i + 1; j < heat.length; j++) {
+              const count = pairCounts[pairKey(heat[i].id, heat[j].id)] || 0;
+              score += count === 0 ? -180 : count * 1600 + count * count * 350;
+            }
+          }
+        });
+        return score;
+      };
+      let bestHeats = null;
+      let bestScore = Infinity;
+      const attempts = Math.max(80, orderedTeams.length * 18);
+      for (let attempt = 0; attempt < attempts; attempt++) {
+        const source = attempt === 0 ? orderedTeams.slice() : shuffleTeamsForDraw(rotateArray(orderedTeams, flightIdx + attempt));
+        const orderRank = new Map(source.map((team, idx) => [team.id, idx]));
+        const remaining = source.slice().sort((a, b2) => pairLoad(b2) - pairLoad(a) || (orderRank.get(a.id) ?? 0) - (orderRank.get(b2.id) ?? 0));
+        const heats = heatSizes.map(() => []);
+        remaining.forEach((team) => {
+          let bestHeatIdx = 0;
+          let bestHeatScore = Infinity;
+          heats.forEach((heat, heatIdx) => {
+            if (heat.length >= heatSizes[heatIdx]) return;
+            const score = scoreAddToHeat(team, heat) + Math.abs(heat.length - heatSizes[heatIdx] / 2);
+            if (score < bestHeatScore) {
+              bestHeatScore = score;
+              bestHeatIdx = heatIdx;
+            }
+          });
+          heats[bestHeatIdx].push(team);
+        });
+        const score = scoreHeats(heats);
+        if (score < bestScore) {
+          bestScore = score;
+          bestHeats = heats;
+          if (score === 0) break;
+        }
+      }
+      return (bestHeats || []).map((heatTeamsRaw) => ({
+        heatTeams: heatTeamsRaw.map((team) => ({ team, boat: boats[0] })),
+        sitOut: [],
+        cycle: flightIdx
+      }));
+    }
     const heats = heatSizes.map(() => []);
     let heatIdxForPos = 0;
     let usedInHeat = 0;
@@ -13221,7 +13295,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   }
   function improveFlightOpponents(flight, pairCounts) {
     let best = flight;
-    let bestScore = flight.reduce((sum, heat) => sum + countPairRepeats(heat.heatTeams, pairCounts), 0);
+    let bestScore = flight.reduce((sum, heat) => sum + scorePairSpread(heat.heatTeams, pairCounts), 0);
     for (let pass = 0; pass < 3; pass++) {
       for (let ai = 0; ai < best.length; ai++) {
         for (let bi = ai + 1; bi < best.length; bi++) {
@@ -13231,7 +13305,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
               const tmp = candidate[ai].heatTeams[as].team;
               candidate[ai].heatTeams[as].team = candidate[bi].heatTeams[bs].team;
               candidate[bi].heatTeams[bs].team = tmp;
-              const score = candidate.reduce((sum, heat) => sum + countPairRepeats(heat.heatTeams, pairCounts), 0);
+              const score = candidate.reduce((sum, heat) => sum + scorePairSpread(heat.heatTeams, pairCounts), 0);
               if (score < bestScore) {
                 best = candidate;
                 bestScore = score;
@@ -13328,7 +13402,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const n = teams.length, b = boats.length;
     if (n < 2 || b < 2) return [];
     const mode = options.mode || "allsvenskan";
-    const opponentVariation = !!options.opponentVariation;
+    const opponentVariation = true;
     const totalFlights = numRounds * b;
     const schedule = [];
     const pairCounts = {};
@@ -13355,7 +13429,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         order = weave;
       }
       let flight = makeFlightFromOrder(order, teams, boats, fi, prevBoatByTeam, pairCounts, { mode, opponentVariation });
-      if (opponentVariation) flight = improveFlightOpponents(flight, pairCounts);
+      flight = improveFlightOpponents(flight, pairCounts);
       flight = balanceFlightBoats(flight, boats, fi, prevBoatByTeam, boatUseCounts, { mode, opponentVariation });
       flight.forEach((heat) => heat.heatTeams.forEach((slot) => {
         prevBoatByTeam[slot.team.id] = slot.boat;
@@ -13418,7 +13492,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const [swapA, setSwapA] = (0, import_react.useState)(null);
     const [numRounds, setNumRounds] = (0, import_react.useState)(2);
     const [scheduleMode, setScheduleMode] = (0, import_react.useState)("allsvenskan");
-    const [opponentVariation, setOpponentVariation] = (0, import_react.useState)(false);
+    const [opponentVariation, setOpponentVariation] = (0, import_react.useState)(true);
     const [drawInfo, setDrawInfo] = (0, import_react.useState)(null);
     const generated = schedule.length > 0;
     const flightsPerCycle = numBoats;
@@ -13503,7 +13577,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       padding: "10px 12px",
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "flex", gap: 8, alignItems: "flex-start", background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "10px 12px", cursor: "pointer" } }, /* @__PURE__ */ import_react.default.createElement("input", { type: "checkbox", checked: opponentVariation, onChange: (e) => setOpponentVariation(e.target.checked), style: { marginTop: 2 } }), /* @__PURE__ */ import_react.default.createElement("span", null, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 13, fontWeight: 800, color: "var(--c-text)", marginBottom: 3 } }, "Maximera motst\xE5ndarvariation"), /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, "Byter lag mellan heat n\xE4r det minskar upprepade m\xF6ten.")))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
+    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "flex", gap: 8, alignItems: "flex-start", background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "10px 12px", cursor: "default" } }, /* @__PURE__ */ import_react.default.createElement("input", { type: "checkbox", checked: true, disabled: true, onChange: () => setOpponentVariation(true), style: { marginTop: 2 } }), /* @__PURE__ */ import_react.default.createElement("span", null, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 13, fontWeight: 800, color: "var(--c-text)", marginBottom: 3 } }, "Motst\xE5ndarvariation alltid aktiv"), /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, "Schemat s\xF6ker aktivt nya kombinationer s\xE5 att samma team inte m\xF6ter varandra i on\xF6dan.")))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
       ["Team", teams.length],
       ["B\xE5tar", numBoats],
       ["Heats totalt", generated ? totalHeats : numRounds * numBoats * Math.ceil((teams.length || 1) / numBoats)],
@@ -15249,6 +15323,45 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         setBackupMessage("Kunde inte läsa backupfilen.");
       }
     };
+    const resetLocalRegatta = () => {
+      if (!window.confirm("Nollställa all lokal regattadata i den här webbläsaren? Lag, schema, resultat, startstatus och synkkö tas bort.")) return;
+      if (remoteSyncTimerRef.current) {
+        clearTimeout(remoteSyncTimerRef.current);
+        remoteSyncTimerRef.current = null;
+      }
+      try {
+        window.localStorage?.removeItem(LOCAL_SAVE_KEY);
+        window.localStorage?.removeItem(SYNC_QUEUE_KEY);
+        window.storage?.delete?.(STORAGE_KEY, true);
+      } catch (e) {
+      }
+      const resetRegatta = { name: "", startDate: "", endDate: "", firstStart: "", lastStart: "", dayTimes: {}, date: "", place: "", numBoats: 4, open: true };
+      const resetBoats = BOAT_COLORS.slice(0, 4);
+      setRegatta(resetRegatta);
+      setBoatColors(resetBoats);
+      setTeams([]);
+      setSchedule([]);
+      setResults({});
+      setLiveState(null);
+      setPublishing(false);
+      setLocalSavedAt(null);
+      setSyncState({ status: syncSettings.url ? "local" : "local", pending: false, lastOk: null, error: "" });
+      if (syncSettings.url) {
+        const resetPayload = {
+          regatta: resetRegatta,
+          teams: [],
+          schedule: [],
+          results: {},
+          boatColors: resetBoats,
+          livePhase: "idle",
+          updatedAt: Date.now()
+        };
+        queueSyncPayload(resetPayload);
+        scheduleRemoteSync(resetPayload);
+      }
+      setBackupMessage("Regattan nollställd lokalt.");
+      setTab(0);
+    };
     const queueSyncPayload = (payload) => {
       try {
         window.localStorage?.setItem(SYNC_QUEUE_KEY, JSON.stringify(payload));
@@ -15477,7 +15590,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       background: publishing ? "#4ade80" : "var(--c-muted)",
       display: "inline-block",
       animation: publishing ? "pulse 1.5s infinite" : "none"
-    } }), publishing ? "LIVE" : "Publicera live"), /* @__PURE__ */ import_react.default.createElement("input", { ref: backupInputRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: (e) => importBackupFile(e.target.files?.[0]) }), /* @__PURE__ */ import_react.default.createElement("button", { onClick: exportBackup, style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Exportera"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => backupInputRef.current?.click(), style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Importera"))), (localSavedAt || backupMessage) && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", padding: "5px 20px", fontSize: 11, color: "var(--c-muted)", fontWeight: 600 } }, localSavedAt ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Autosparad ", new Date(localSavedAt).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" }), " i den h\xE4r webbl\xE4saren") : null, backupMessage ? /* @__PURE__ */ import_react.default.createElement("span", { style: { marginLeft: localSavedAt ? 10 : 0, color: backupMessage.includes("inte") ? "#fca5a5" : "#4ade80" } }, backupMessage) : null), publishing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.08)", borderBottom: "1px solid rgba(74,222,128,0.2)", padding: "8px 20px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 600 } }, "\u{1F7E2} Regattan publiceras live"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)" } }, "Lokal publik sida: ", /* @__PURE__ */ import_react.default.createElement("code", { style: { background: "var(--c-surface2)", borderRadius: 4, padding: "1px 5px" } }, "#resultat")), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: syncState.status === "ok" ? "#4ade80" : syncState.status === "failed" || syncState.status === "offline" ? "#fca5a5" : "var(--c-muted)", fontWeight: 700 } }, syncSettings.url ? syncState.status === "ok" ? `Synkad ${new Date(syncState.lastOk).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}` : syncState.status === "syncing" ? "Synkar..." : syncState.status === "offline" ? "Offline - köad" : syncState.status === "failed" ? syncState.error ? `Synk misslyckades: ${syncState.error}` : "Synk misslyckades - köad" : "Väntar i synkkö" : "Ingen serveradress - sparar lokalt")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", display: "flex", overflowX: "auto" } }, TABS.map((t, i) => /* @__PURE__ */ import_react.default.createElement("button", { key: i, onClick: () => setTab(i), style: {
+    } }), publishing ? "LIVE" : "Publicera live"), /* @__PURE__ */ import_react.default.createElement("input", { ref: backupInputRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: (e) => importBackupFile(e.target.files?.[0]) }), /* @__PURE__ */ import_react.default.createElement("button", { onClick: exportBackup, style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Exportera"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => backupInputRef.current?.click(), style: { background: "var(--c-surface2)", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Importera"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: resetLocalRegatta, style: { background: "rgba(248,113,113,0.12)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.35)", borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Nollställ"))), (localSavedAt || backupMessage) && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", padding: "5px 20px", fontSize: 11, color: "var(--c-muted)", fontWeight: 600 } }, localSavedAt ? /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, "Autosparad ", new Date(localSavedAt).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" }), " i den h\xE4r webbl\xE4saren") : null, backupMessage ? /* @__PURE__ */ import_react.default.createElement("span", { style: { marginLeft: localSavedAt ? 10 : 0, color: backupMessage.includes("inte") ? "#fca5a5" : "#4ade80" } }, backupMessage) : null), publishing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.08)", borderBottom: "1px solid rgba(74,222,128,0.2)", padding: "8px 20px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 600 } }, "\u{1F7E2} Regattan publiceras live"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)" } }, "Lokal publik sida: ", /* @__PURE__ */ import_react.default.createElement("code", { style: { background: "var(--c-surface2)", borderRadius: 4, padding: "1px 5px" } }, "#resultat")), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: syncState.status === "ok" ? "#4ade80" : syncState.status === "failed" || syncState.status === "offline" ? "#fca5a5" : "var(--c-muted)", fontWeight: 700 } }, syncSettings.url ? syncState.status === "ok" ? `Synkad ${new Date(syncState.lastOk).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}` : syncState.status === "syncing" ? "Synkar..." : syncState.status === "offline" ? "Offline - köad" : syncState.status === "failed" ? syncState.error ? `Synk misslyckades: ${syncState.error}` : "Synk misslyckades - köad" : "Väntar i synkkö" : "Ingen serveradress - sparar lokalt")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", display: "flex", overflowX: "auto" } }, TABS.map((t, i) => /* @__PURE__ */ import_react.default.createElement("button", { key: i, onClick: () => setTab(i), style: {
       background: "none",
       border: "none",
       cursor: "pointer",
