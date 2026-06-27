@@ -4,10 +4,6 @@ const BLOB_PATH = "regatta/live.json";
 
 function blobAuthOptions() {
   const options = {};
-  if (process.env.BLOB_STORE_ID && process.env.VERCEL_OIDC_TOKEN) {
-    options.storeId = process.env.BLOB_STORE_ID;
-    options.oidcToken = process.env.VERCEL_OIDC_TOKEN;
-  }
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     options.token = process.env.BLOB_READ_WRITE_TOKEN;
   }
@@ -29,7 +25,7 @@ export default async function handler(req, res) {
   try {
     const blob = await get(BLOB_PATH, blobAuthOptions());
     if (!blob?.url && !blob?.stream) {
-      return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu" });
+      return res.status(404).json({ ok: false, error: "Ingen publicerad regatta ännu", detail: "Blob saknas på regatta/live.json i den Blob-store som API:t läser från." });
     }
     const text = blob.stream ? await new Response(blob.stream).text() : await fetch(blob.url, { cache: "no-store" }).then((r) => {
       if (!r.ok) throw new Error(`Blob HTTP ${r.status}`);

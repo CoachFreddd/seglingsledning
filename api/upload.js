@@ -5,10 +5,6 @@ const MAX_BODY_BYTES = 1024 * 1024;
 
 function blobAuthOptions() {
   const options = {};
-  if (process.env.BLOB_STORE_ID && process.env.VERCEL_OIDC_TOKEN) {
-    options.storeId = process.env.BLOB_STORE_ID;
-    options.oidcToken = process.env.VERCEL_OIDC_TOKEN;
-  }
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     options.token = process.env.BLOB_READ_WRITE_TOKEN;
   }
