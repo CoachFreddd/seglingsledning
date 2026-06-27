@@ -1,8 +1,9 @@
-const CACHE_NAME = "regattaapp-offline-v2";
+const CACHE_NAME = "regattaapp-offline-v3";
 const APP_ASSETS = [
   "./",
-  "./regattaapp_36.html",
-  "./regatta-manifest.webmanifest",
+  "./regattaapp_37.html",
+  "./ledning.html",
+  "./admin.html",
   "./flags/flag-1.png",
   "./flags/flag-2.png",
   "./flags/flag-3.png",
@@ -45,7 +46,7 @@ self.addEventListener("fetch", (event) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
-      }).catch(() => caches.match("./regattaapp_36.html"));
+      }).catch(() => caches.match("./regattaapp_37.html"));
     })
   );
 });

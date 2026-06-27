@@ -3,7 +3,7 @@
   "short_name": "Regatta",
   "description": "Offline-first start-, schema- och resultatstöd för sprintsegling.",
   "lang": "sv",
-  "start_url": "./regattaapp_36.html",
+  "start_url": "./regattaapp_37.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
