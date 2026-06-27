@@ -1,0 +1,26 @@
+{
+  "name": "Seglingsledning",
+  "short_name": "Ledning",
+  "description": "Kontrollpanel för regattans schema, start, mål och resultat.",
+  "lang": "sv",
+  "start_url": "./ledning.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c0f1a",
+  "theme_color": "#0c0f1a",
+  "icons": [
+    {
+      "src": "flags/Flag-P.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "flags/Flag-P.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
