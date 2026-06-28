@@ -13929,8 +13929,9 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const lastStartUrgent = lastStartRemaining != null && lastStartRemaining <= 15 * 60;
     const videoLabel = heat ? `Flight ${(heat.flightNum ?? heat.cycle ?? 0) + 1} \u00B7 Heat ${activeIdx + 1}` : "Regatta";
     const getNextHeatIndex = () => {
-      if (regatta?.finalMode && Number.isInteger(regatta.finalHeatGlobalIdx) && !results[`g${regatta.finalHeatGlobalIdx}`]) {
-        return Math.min(Math.max(0, regatta.finalHeatGlobalIdx), Math.max(0, allHeats.length - 1));
+      const pendingFinalIdx = getFinalHeatConfigs(regatta).map((f) => f.globalIdx).filter((idx) => Number.isInteger(idx) && !results[`g${idx}`]).sort((a, b) => a - b)[0];
+      if (regatta?.finalMode && Number.isInteger(pendingFinalIdx)) {
+        return Math.min(Math.max(0, pendingFinalIdx), Math.max(0, allHeats.length - 1));
       }
       const nextIdx = allHeats.findIndex((_, i) => !results[`g${i}`]);
       if (nextIdx >= 0) return nextIdx;
@@ -14112,10 +14113,11 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       lastStartWarnedRef.current = false;
     }, [regatta?.endDate, regatta?.startDate, regatta?.lastStart, regatta?.dayTimes]);
     (0, import_react.useEffect)(() => {
-      if (!regatta?.finalMode || !Number.isInteger(regatta.finalHeatGlobalIdx)) return;
-      if (phase !== "idle" || activeHeatIdx != null || results[`g${regatta.finalHeatGlobalIdx}`]) return;
-      setCur(Math.min(Math.max(0, regatta.finalHeatGlobalIdx), Math.max(0, allHeats.length - 1)));
-    }, [regatta?.finalMode, regatta?.finalHeatGlobalIdx, phase, activeHeatIdx, allHeats.length, results]);
+      const pendingFinalIdx = getFinalHeatConfigs(regatta).map((f) => f.globalIdx).filter((idx) => Number.isInteger(idx) && !results[`g${idx}`]).sort((a, b) => a - b)[0];
+      if (!regatta?.finalMode || !Number.isInteger(pendingFinalIdx)) return;
+      if (phase !== "idle" || activeHeatIdx != null) return;
+      setCur(Math.min(Math.max(0, pendingFinalIdx), Math.max(0, allHeats.length - 1)));
+    }, [regatta?.finalMode, regatta?.finalHeatGlobalIdx, regatta?.finalHeats, phase, activeHeatIdx, allHeats.length, results]);
     (0, import_react.useEffect)(() => {
       const load = () => window.speechSynthesis.getVoices();
       load();
@@ -15054,49 +15056,122 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     });
     return { scoredHeats, scores, ranked, raceByTeamHeat };
   }
-  function getFinalResultData(regatta, teams, schedule, results) {
-    if (!regatta?.finalMode || !Number.isInteger(regatta.finalHeatGlobalIdx)) return null;
-    const finalIdx = regatta.finalHeatGlobalIdx;
-    const allHeats = flattenScheduleHeats(schedule || []);
-    const heat = allHeats.find((h) => h.globalIdx === finalIdx);
-    const result = results?.[`g${finalIdx}`];
-    const seeds = regatta.finalSeeds || [];
-    if (!heat || seeds.length === 0) return null;
-    const teamById = new Map((teams || []).map((team) => [team.id, team]));
-    const seedById = new Map(seeds.map((seed) => [seed.teamId, seed]));
-    const numInHeat = heat.heatTeams.length;
-    const rows = heat.heatTeams.map((slot) => {
-      const seed = seedById.get(slot.team.id) || {};
-      const placeIdx = result?.finishOrder?.findIndex((s) => s.team.id === slot.team.id) ?? -1;
-      const code = result?.overrides?.[slot.team.id] || (result ? placeIdx === -1 ? "DNF" : "fin" : null);
-      const finalPlace = code === "fin" ? placeIdx + 1 : null;
-      const codeObj = SCORE_CODES.find((sc) => sc.id === code) || null;
-      const finalPoints = result ? computeScore(code, finalPlace || numInHeat + 1, numInHeat) : null;
-      const seedPoints = seed.seedPoints || seed.seriesPlace || 0;
+  function getFinalHeatConfigs(regatta) {
+    if (!regatta?.finalMode) return [];
+    if (Array.isArray(regatta.finalHeats) && regatta.finalHeats.length) return regatta.finalHeats.filter((f) => Number.isInteger(f?.globalIdx));
+    if (Number.isInteger(regatta.finalHeatGlobalIdx)) return [{
+      label: "Final",
+      globalIdx: regatta.finalHeatGlobalIdx,
+      seeds: regatta.finalSeeds || []
+    }];
+    return [];
+  }
+  function chooseFinalPlan(finalistCount, bFinalCount) {
+    const suffix = bFinalCount > 1 ? `\nSkriv AB för B-final (${bFinalCount}) + A-final (${finalistCount}).` : "";
+    const choice = window.prompt(`Avsluta grundserien. Skriv A för A-final med topp ${finalistCount}, AB för A+B-final eller N för ingen final.${suffix}`, finalistCount > 1 ? "A" : "N");
+    if (choice == null) return null;
+    const normalized = String(choice).trim().toUpperCase().replace(/[^A-Z]/g, "");
+    if (!normalized || normalized === "N" || normalized === "NEJ" || normalized === "NONE" || normalized === "INGEN") return "none";
+    if (normalized === "AB" || normalized === "BA" || normalized === "ABFINAL") return bFinalCount > 1 ? "AB" : "A";
+    return finalistCount > 1 ? "A" : "none";
+  }
+  function buildFinalPlan(ranked, activeBoats, startIdx, mode) {
+    const boatCount = activeBoats.length;
+    const groups = mode === "AB" ? [
+      { label: "B-final", entries: ranked.slice(boatCount, boatCount * 2), offset: boatCount },
+      { label: "A-final", entries: ranked.slice(0, boatCount), offset: 0 }
+    ] : [{ label: "A-final", entries: ranked.slice(0, boatCount), offset: 0 }];
+    const usableGroups = groups.filter((group) => group.entries.length > 1);
+    const finalHeats = usableGroups.map((group, groupIdx) => {
+      const seeds = group.entries.map((entry, i) => ({
+        teamId: entry.team.id,
+        seriesPlace: group.offset + i + 1,
+        seedPlace: group.offset + i + 1,
+        seedPoints: group.offset + i + 1,
+        seriesPoints: entry.points
+      }));
       return {
-        team: teamById.get(slot.team.id) || slot.team,
-        boat: slot.boat,
-        seriesPlace: seed.seriesPlace || seed.seedPlace || null,
-        seedPoints,
-        finalPlace,
-        finalPoints,
-        totalPoints: result ? seedPoints + finalPoints : seedPoints,
-        code,
-        codeObj
+        label: group.label,
+        globalIdx: startIdx + groupIdx,
+        seeds,
+        heat: {
+          final: true,
+          finalLabel: group.label,
+          heatTeams: group.entries.map((entry, i) => ({ team: entry.team, boat: activeBoats[i] })),
+          sitOut: []
+        }
       };
-    }).sort((a, b) => {
-      if (result) return a.totalPoints - b.totalPoints || (a.finalPlace || 999) - (b.finalPlace || 999) || (a.seriesPlace || 999) - (b.seriesPlace || 999);
+    });
+    return {
+      finalHeats,
+      scheduleFlight: finalHeats.map((f) => f.heat),
+      allSeeds: finalHeats.flatMap((f) => f.seeds)
+    };
+  }
+  function getFinalResultData(regatta, teams, schedule, results) {
+    let finalConfigs = getFinalHeatConfigs(regatta);
+    const allHeats = flattenScheduleHeats(schedule || []);
+    const completedFinalHeats = allHeats.filter((heat) => heat.final && results?.[`g${heat.globalIdx}`]);
+    if (completedFinalHeats.length && !finalConfigs.some((config) => results?.[`g${config.globalIdx}`])) {
+      finalConfigs = completedFinalHeats.map((heat, i) => ({
+        label: heat.finalLabel || (completedFinalHeats.length > 1 ? `Final ${i + 1}` : "Final"),
+        globalIdx: heat.globalIdx,
+        seeds: regatta.finalSeeds || []
+      }));
+    }
+    if (!finalConfigs.length) return null;
+    const teamById = new Map((teams || []).map((team) => [team.id, team]));
+    const groups = finalConfigs.map((config, groupIdx) => {
+      const finalIdx = config.globalIdx;
+      const heat = allHeats.find((h) => h.globalIdx === finalIdx);
+      const result = results?.[`g${finalIdx}`];
+      const seeds = config.seeds || regatta.finalSeeds || [];
+      if (!heat || seeds.length === 0) return null;
+      const seedById = new Map(seeds.map((seed) => [seed.teamId, seed]));
+      const numInHeat = heat.heatTeams.length;
+      const rows = heat.heatTeams.map((slot) => {
+        const seed = seedById.get(slot.team.id) || {};
+        const placeIdx = result?.finishOrder?.findIndex((s) => s.team.id === slot.team.id) ?? -1;
+        const code = result?.overrides?.[slot.team.id] || (result ? placeIdx === -1 ? "DNF" : "fin" : null);
+        const finalPlace = code === "fin" ? placeIdx + 1 : null;
+        const codeObj = SCORE_CODES.find((sc) => sc.id === code) || null;
+        const finalPoints = result ? computeScore(code, finalPlace || numInHeat + 1, numInHeat) : null;
+        const seedPoints = seed.seedPoints || seed.seriesPlace || 0;
+        return {
+          team: teamById.get(slot.team.id) || slot.team,
+          boat: slot.boat,
+          finalLabel: config.label || (groupIdx === 0 ? "Final" : `Final ${groupIdx + 1}`),
+          seriesPlace: seed.seriesPlace || seed.seedPlace || null,
+          seedPoints,
+          finalPlace,
+          finalPoints,
+          totalPoints: result ? seedPoints + finalPoints : seedPoints,
+          code,
+          codeObj
+        };
+      }).sort((a, b) => {
+        if (result) return a.totalPoints - b.totalPoints || (a.finalPlace || 999) - (b.finalPlace || 999) || (a.seriesPlace || 999) - (b.seriesPlace || 999);
+        return (a.seriesPlace || 999) - (b.seriesPlace || 999);
+      });
+      return { label: config.label || (groupIdx === 0 ? "Final" : `Final ${groupIdx + 1}`), heat, result, rows };
+    }).filter(Boolean);
+    if (!groups.length) return null;
+    const rows = groups.flatMap((group) => group.rows).sort((a, b) => {
+      const ar = groups.find((g) => g.rows.includes(a))?.result;
+      const br = groups.find((g) => g.rows.includes(b))?.result;
+      if (ar && br) return a.totalPoints - b.totalPoints || (a.seriesPlace || 999) - (b.seriesPlace || 999);
       return (a.seriesPlace || 999) - (b.seriesPlace || 999);
     });
     const finalists = [...rows].sort((a, b) => (a.seriesPlace || 999) - (b.seriesPlace || 999));
-    return { heat, result, rows, finalists };
+    const result = groups.every((group) => !!group.result) ? { allFinalsComplete: true } : null;
+    return { heat: groups[0].heat, groups, result, rows, finalists };
   }
   function FinalResultPanel({ regatta, teams, schedule, results, compact = false }) {
     const data = getFinalResultData(regatta, teams, schedule, results);
     if (!data) return null;
-    return /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, overflow: "hidden" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: "12px 14px", borderBottom: "1px solid var(--c-border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-accent)", letterSpacing: "0.08em" } }, "FINAL"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 3 } }, data.result ? "Finalen är seglad. Lägst totalpoäng vinner." : "Finalheat skapat och väntar på start.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: data.result ? "#4ade80" : "#fbbf24", fontWeight: 800 } }, data.result ? "Resultat" : "På tur")), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: compact ? "10px 12px" : "12px 14px", borderBottom: "1px solid var(--c-border)", background: "var(--c-surface2)" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 900, color: "var(--c-text)", marginBottom: 8 } }, "Till final"), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(auto-fit,minmax(190px,1fr))", gap: 6 } }, data.finalists.map((row) => /* @__PURE__ */ import_react.default.createElement("div", { key: row.team.id, style: { display: "grid", gridTemplateColumns: "28px 1fr auto", alignItems: "center", gap: 7, background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "7px 8px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 900, color: "var(--c-accent)", textAlign: "right" } }, row.seriesPlace), /* @__PURE__ */ import_react.default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, row.team.name), !compact && /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: row.team })), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)", whiteSpace: "nowrap" } }, row.seedPoints, "p"))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: compact ? 540 : 640 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, ["Plac", "Besättning", "Serie", "Final", "Totalt"].map((head) => /* @__PURE__ */ import_react.default.createElement("th", { key: head, style: { background: "var(--c-surface2)", color: "var(--c-muted)", fontSize: 10, fontWeight: 900, textAlign: head === "Besättning" ? "left" : "right", padding: "7px 8px", borderBottom: "1px solid var(--c-border)" } }, head)))), /* @__PURE__ */ import_react.default.createElement("tbody", null, data.rows.map((row, i) => {
-      const finalText = !data.result ? "Ej seglad" : row.code && row.code !== "fin" ? row.code : `#${row.finalPlace}`;
-      return /* @__PURE__ */ import_react.default.createElement("tr", { key: row.team.id }, /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 15, fontWeight: 900, color: i === 0 ? "#FBBF24" : "var(--c-text)" } }, data.result ? i + 1 : row.seriesPlace), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "left" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: row.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)" } }, row.team.name), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: row.team })))), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: "var(--c-muted)", fontWeight: 800 } }, "#", row.seriesPlace, " / ", row.seedPoints, "p"), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: row.codeObj?.color || "var(--c-text)", fontWeight: 900 } }, finalText, data.result && row.finalPoints != null ? ` / ${row.finalPoints}p` : ""), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 13, color: "var(--c-accent)", fontWeight: 900 } }, data.result ? `${row.totalPoints % 1 === 0 ? row.totalPoints : row.totalPoints.toFixed(1)}p` : "-"));
+    return /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, overflow: "hidden" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: "12px 14px", borderBottom: "1px solid var(--c-border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-accent)", letterSpacing: "0.08em" } }, "FINAL"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 3 } }, data.result ? "Alla finalheat är seglade. Lägst totalpoäng vinner." : "Finalheat skapat och väntar på start.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: data.result ? "#4ade80" : "#fbbf24", fontWeight: 800 } }, data.result ? "Resultat" : "På tur")), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: compact ? "10px 12px" : "12px 14px", borderBottom: "1px solid var(--c-border)", background: "var(--c-surface2)" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 900, color: "var(--c-text)", marginBottom: 8 } }, "Till final"), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(auto-fit,minmax(190px,1fr))", gap: 6 } }, data.finalists.map((row) => /* @__PURE__ */ import_react.default.createElement("div", { key: row.team.id, style: { display: "grid", gridTemplateColumns: "28px 1fr auto", alignItems: "center", gap: 7, background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "7px 8px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 900, color: "var(--c-accent)", textAlign: "right" } }, row.seriesPlace), /* @__PURE__ */ import_react.default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, row.team.name), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", marginTop: 2, fontWeight: 800 } }, row.finalLabel), !compact && /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: row.team })), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)", whiteSpace: "nowrap" } }, row.seedPoints, "p"))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: compact ? 540 : 640 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, ["Plac", "Besättning", "Serie", "Final", "Totalt"].map((head) => /* @__PURE__ */ import_react.default.createElement("th", { key: head, style: { background: "var(--c-surface2)", color: "var(--c-muted)", fontSize: 10, fontWeight: 900, textAlign: head === "Besättning" ? "left" : "right", padding: "7px 8px", borderBottom: "1px solid var(--c-border)" } }, head)))), /* @__PURE__ */ import_react.default.createElement("tbody", null, data.rows.map((row, i) => {
+      const finalText = row.finalPoints == null ? "Ej seglad" : row.code && row.code !== "fin" ? row.code : `#${row.finalPlace}`;
+      return /* @__PURE__ */ import_react.default.createElement("tr", { key: row.team.id }, /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 15, fontWeight: 900, color: i === 0 ? "#FBBF24" : "var(--c-text)" } }, row.finalPoints != null ? i + 1 : row.seriesPlace), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "left" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: row.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)" } }, row.team.name), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", marginTop: 2, fontWeight: 800 } }, row.finalLabel), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: row.team })))), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: "var(--c-muted)", fontWeight: 800 } }, "#", row.seriesPlace, " / ", row.seedPoints, "p"), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: row.codeObj?.color || "var(--c-text)", fontWeight: 900 } }, finalText, row.finalPoints != null ? ` / ${row.finalPoints}p` : ""), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 13, color: "var(--c-accent)", fontWeight: 900 } }, row.finalPoints != null ? `${row.totalPoints % 1 === 0 ? row.totalPoints : row.totalPoints.toFixed(1)}p` : "-"));
     })))));
   }
   function buildStatisticsData(teams, schedule, results) {
@@ -15319,17 +15394,26 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       const { ranked: seriesRanked } = buildScoreData(teams || [], schedule || [], results || {}, seriesRegatta);
       const activeBoats = (boatColors || BOAT_COLORS).slice(0, regatta?.numBoats || 4);
       const finalistCount = Math.min(activeBoats.length, seriesRanked.length);
-      const sailFinal = window.confirm(`Avsluta regattan. Vill du skapa ett finalheat med topp ${finalistCount}?`);
-      if (sailFinal && finalistCount > 1) {
-        const baseSchedule = regatta?.finalMode && schedule?.[schedule.length - 1]?.[0]?.final ? schedule.slice(0, -1) : schedule;
+      const existingFinalData = getFinalResultData(regatta, teams || [], schedule || [], results || {});
+      if (existingFinalData?.result) {
+        setRegatta((r) => ({
+          ...r,
+          dayEnded: false,
+          finalized: true,
+          finalizedFlightCount: r?.finalizedFlightCount || completedFlightCount,
+          finalizedReason: "final",
+          finalizedAt: Date.now()
+        }));
+        return;
+      }
+      const bFinalCount = Math.min(activeBoats.length, Math.max(0, seriesRanked.length - finalistCount));
+      const finalPlanChoice = chooseFinalPlan(finalistCount, bFinalCount);
+      if (finalPlanChoice == null) return;
+      if (finalPlanChoice !== "none" && finalistCount > 1) {
+        const baseSchedule = regatta?.finalMode && schedule?.[schedule.length - 1]?.some((h) => h.final) ? schedule.slice(0, -1) : schedule;
         const finalIdx = flattenScheduleHeats(baseSchedule || []).length;
-        const finalists = seriesRanked.slice(0, finalistCount);
-        const finalHeat = {
-          final: true,
-          heatTeams: finalists.map((entry, i) => ({ team: entry.team, boat: activeBoats[i] })),
-          sitOut: []
-        };
-        const nextSchedule = [...(baseSchedule || []), [finalHeat]];
+        const finalPlan = buildFinalPlan(seriesRanked, activeBoats, finalIdx, finalPlanChoice);
+        const nextSchedule = [...(baseSchedule || []), finalPlan.scheduleFlight];
         setSchedule(nextSchedule);
         setRegatta((r) => ({
           ...r,
@@ -15340,13 +15424,9 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
           finalizedAt: Date.now(),
           finalMode: true,
           finalHeatGlobalIdx: finalIdx,
-          finalSeeds: finalists.map((entry, i) => ({
-            teamId: entry.team.id,
-            seriesPlace: i + 1,
-            seedPlace: i + 1,
-            seedPoints: i + 1,
-            seriesPoints: entry.points
-          }))
+          finalHeatGlobalIdxs: finalPlan.finalHeats.map((f) => f.globalIdx),
+          finalHeats: finalPlan.finalHeats.map(({ label, globalIdx, seeds }) => ({ label, globalIdx, seeds })),
+          finalSeeds: finalPlan.allSeeds
         }));
         if (onGoStart) onGoStart();
         return;
@@ -15553,7 +15633,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       forcedAdmin = window.localStorage?.getItem("regattaapp-force-admin-v1") === "1" || window.sessionStorage?.getItem("regattaapp-force-admin-v1") === "1";
     } catch (e) {
     }
-    const adminPath = /(^|\/)ledning(\.html)?$/i.test(window.location.pathname || "");
+    const adminPath = /(^|\/)(ledning|admin)(\.html)?$/i.test(window.location.pathname || "");
     const isAdminRoute = window.location.hash === ADMIN_HASH || adminParam === "1" || adminParam === "true" || adminPath || forcedAdmin;
     const isPublic = !isAdminRoute;
     const [tab, setTab] = (0, import_react.useState)(0);
@@ -15922,17 +16002,30 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       const seriesRegatta = { ...regatta, finalized: true, finalizedFlightCount: completedFlightCount };
       const { ranked } = buildScoreData(teams || [], sched || [], results || {}, seriesRegatta);
       const finalistCount = Math.min(activeBoats.length, ranked.length);
-      const sailFinal = window.confirm(`Avsluta hela regattan. Vill du skapa ett finalheat med topp ${finalistCount}?`);
-      if (sailFinal && finalistCount > 1) {
-        const baseSchedule = regatta?.finalMode && schedule?.[schedule.length - 1]?.[0]?.final ? schedule.slice(0, -1) : schedule;
-        const finalIdx = flattenScheduleHeats(baseSchedule || []).length;
-        const finalists = ranked.slice(0, finalistCount);
-        const finalHeat = {
-          final: true,
-          heatTeams: finalists.map((entry, i) => ({ team: entry.team, boat: activeBoats[i] })),
-          sitOut: []
+      const existingFinalData = getFinalResultData(regatta, teams || [], sched || [], results || {});
+      if (existingFinalData?.result) {
+        const nextRegatta = {
+          ...regatta,
+          dayEnded: false,
+          finalized: true,
+          finalizedFlightCount: regatta?.finalizedFlightCount || completedFlightCount,
+          finalizedReason: "final",
+          finalizedAt: Date.now()
         };
-        const nextSchedule = [...(baseSchedule || []), [finalHeat]];
+        const nextLive = { ...(liveState || {}), livePhase: "idle", livePostponed: false, liveFalseStart: null };
+        setRegatta(nextRegatta);
+        setLiveState(nextLive);
+        if (publishing) await publish({ regatta: nextRegatta, ...nextLive }, { immediate: true });
+        return;
+      }
+      const bFinalCount = Math.min(activeBoats.length, Math.max(0, ranked.length - finalistCount));
+      const finalPlanChoice = chooseFinalPlan(finalistCount, bFinalCount);
+      if (finalPlanChoice == null) return;
+      if (finalPlanChoice !== "none" && finalistCount > 1) {
+        const baseSchedule = regatta?.finalMode && schedule?.[schedule.length - 1]?.some((h) => h.final) ? schedule.slice(0, -1) : schedule;
+        const finalIdx = flattenScheduleHeats(baseSchedule || []).length;
+        const finalPlan = buildFinalPlan(ranked, activeBoats, finalIdx, finalPlanChoice);
+        const nextSchedule = [...(baseSchedule || []), finalPlan.scheduleFlight];
         const nextRegatta = {
           ...regatta,
           dayEnded: false,
@@ -15942,13 +16035,9 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
           finalizedAt: Date.now(),
           finalMode: true,
           finalHeatGlobalIdx: finalIdx,
-          finalSeeds: finalists.map((entry, i) => ({
-            teamId: entry.team.id,
-            seriesPlace: i + 1,
-            seedPlace: i + 1,
-            seedPoints: i + 1,
-            seriesPoints: entry.points
-          }))
+          finalHeatGlobalIdxs: finalPlan.finalHeats.map((f) => f.globalIdx),
+          finalHeats: finalPlan.finalHeats.map(({ label, globalIdx, seeds }) => ({ label, globalIdx, seeds })),
+          finalSeeds: finalPlan.allSeeds
         };
         const nextLive = { ...(liveState || {}), liveHeat: finalIdx, livePhase: "idle", livePostponed: false, liveFalseStart: null };
         setSchedule(nextSchedule);
@@ -15996,11 +16085,6 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       const id = setInterval(load, POLL_INTERVAL);
       return () => clearInterval(id);
     }, [isPublic]);
-    (0, import_react.useEffect)(() => {
-      if (!("serviceWorker" in navigator) || window.location.protocol === "file:") return;
-      navigator.serviceWorker.register("./regatta-sw.js").catch(() => {
-      });
-    }, []);
     const unlockAdmin = () => {
       if (adminPin.trim() !== ADMIN_PIN) {
         setAdminMessage("Fel PIN.");

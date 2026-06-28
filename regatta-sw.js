@@ -1,4 +1,4 @@
-const CACHE_NAME = "regattaapp-offline-v3";
+const CACHE_NAME = "regattaapp-offline-v4";
 const APP_ASSETS = [
   "./",
   "./regattaapp_37.html",
