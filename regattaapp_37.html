@@ -13223,6 +13223,35 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     return best?.boat || boats.find((boat) => !usedBoats.has(boat.id)) || boats[0];
   }
   function balanceFlightBoats(flight, boats, flightIdx, prevBoatByTeam, boatUseCounts, options) {
+    if (options.mode === "boatChanges") {
+      // In minimize-changes mode: assign boats in Heat 1 first,
+      // then lock those assignments for any team appearing in Heat 2+
+      const teamBoatInFlight = {};
+      const usedInHeat = {};
+      return flight.map((heat, heatIdx) => {
+        const usedBoats = /* @__PURE__ */ new Set();
+        // First pass: lock teams that already got a boat this flight
+        const locked = heat.heatTeams.map((slot) => {
+          if (teamBoatInFlight[slot.team.id]) {
+            usedBoats.add(teamBoatInFlight[slot.team.id].id);
+            return { ...slot, boat: teamBoatInFlight[slot.team.id] };
+          }
+          return null;
+        });
+        // Second pass: assign remaining teams
+        return {
+          ...heat,
+          heatTeams: heat.heatTeams.map((slot, pos) => {
+            if (locked[pos]) return locked[pos];
+            const boat = pickBalancedBoat(slot.team, boats, usedBoats, flightIdx, heatIdx, pos, prevBoatByTeam, boatUseCounts, options);
+            usedBoats.add(boat.id);
+            teamBoatInFlight[slot.team.id] = boat;
+            return { ...slot, boat };
+          })
+        };
+      });
+    }
+    // Standard mode: assign boats independently per heat
     return flight.map((heat, heatIdx) => {
       const usedBoats = /* @__PURE__ */ new Set();
       return {
@@ -13760,7 +13789,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       cursor: "pointer",
       fontFamily: "inherit"
     } }, n, "\xD7")), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)", marginLeft: 4 } }, "= ", numRounds * numBoats, " flighter totalt \xB7 ", numRounds * numBoats, " race per team"))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginTop: 14 } }, [
-      ["allsvenskan", "Allsvenskan-modell", "Roterar lagen genom f\xE4ltet och sprider b\xE5tf\xE4rgerna."],
+      ["allsvenskan", "Standard", "Roterar lagen f\xF6r maximal motst\xE5ndarvariation och j\xE4mn b\xE5tf\xF6rdelning."],
       ["boatChanges", "Minimera b\xE5tbyten", "F\xF6rs\xF6ker l\xE5ta varje team beh\xE5lla samma b\xE5t mellan flighter."]
     ].map(([id, title, desc]) => /* @__PURE__ */ import_react.default.createElement("button", { key: id, onClick: () => setScheduleMode(id), style: {
       textAlign: "left",
@@ -13776,7 +13805,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       ["B\xE5tar", numBoats],
       ["Heats totalt", generated ? totalHeats : numRounds * numBoats * Math.ceil((teams.length || 1) / numBoats)],
       ["Race / team", numRounds * numBoats]
-    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Minimera b\xE5tbyten" : "Allsvenskan-modell"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", opponentVariation ? " Extra motst\xE5ndarvariation \xE4r p\xE5." : "", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && completedHeatCount > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.36)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#FCD34D", marginBottom: 14, lineHeight: 1.5, fontWeight: 700 } }, completedHeatCount, " heat har sparade resultat och \xE4r l\xE5sta. Regenerering lottar bara om heat utan resultat."), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? completedHeatCount > 0 ? "Regenerera återstående heat" : "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
+    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Minimera b\xE5tbyten" : "Standard"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", opponentVariation ? " Extra motst\xE5ndarvariation \xE4r p\xE5." : "", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && completedHeatCount > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.36)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#FCD34D", marginBottom: 14, lineHeight: 1.5, fontWeight: 700 } }, completedHeatCount, " heat har sparade resultat och \xE4r l\xE5sta. Regenerering lottar bara om heat utan resultat."), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? completedHeatCount > 0 ? "Regenerera återstående heat" : "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
       setEditMode((e) => !e);
       setSwapA(null);
     }, style: {
