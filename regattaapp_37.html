@@ -12724,7 +12724,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   var import_react = __toESM(require_react());
   var import_client = __toESM(require_client());
   var BOAT_COLORS = [
-    { id: "gul", label: "Gul", bg: "#F5C518", text: "#1a1a1a" },
+    { id: "gul", label: "Gul", bg: "#F5C518", text: "#1a1a1a", sailNumber: "" },
     { id: "rod", label: "R\xF6d", bg: "#E53E3E", text: "#fff" },
     { id: "bla", label: "Bl\xE5", bg: "#3182CE", text: "#fff" },
     { id: "gron", label: "Gr\xF6n", bg: "#38A169", text: "#fff" },
@@ -13002,7 +13002,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       fontSize: sm ? 11 : 13,
       fontWeight: 700,
       flexShrink: 0
-    } }, boat.label);
+    } }, boat.sailNumber || boat.label);
   }
   function TeamPill({ team }) {
     return /* @__PURE__ */ import_react.default.createElement("span", { style: {
@@ -13131,7 +13131,13 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       fontWeight: 700,
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, n))), boatRec && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.35)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 12, color: "#FCD34D", lineHeight: 1.5, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", null, "Med ", teams.length, " team blir ", boatRec.boats, " b\xE5tar j\xE4mnare: ", boatRec.heats, " heat per flight med ", boatRec.sizes.join("+"), " b\xE5tar."), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => handleNumBoats(boatRec.boats), style: { background: "#FBBF24", color: "#1a1a1a", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" } }, "Anv\xE4nd ", boatRec.boats, " b\xE5tar")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, boatColors.slice(0, numBoats).map((boat, idx) => /* @__PURE__ */ import_react.default.createElement("div", { key: idx, style: { display: "flex", alignItems: "center", gap: 8, background: "var(--c-surface2)", borderRadius: 8, padding: "6px 10px" } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement(
+    } }, n))), boatRec && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.35)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 12, color: "#FCD34D", lineHeight: 1.5, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", null, "Med ", teams.length, " team blir ", boatRec.boats, " b\xE5tar j\xE4mnare: ", boatRec.heats, " heat per flight med ", boatRec.sizes.join("+"), " b\xE5tar."), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => handleNumBoats(boatRec.boats), style: { background: "#FBBF24", color: "#1a1a1a", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" } }, "Anv\xE4nd ", boatRec.boats, " b\xE5tar")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, boatColors.slice(0, numBoats).map((boat, idx) => /* @__PURE__ */ import_react.default.createElement("div", { key: idx, style: { display: "flex", alignItems: "center", gap: 8, background: "var(--c-surface2)", borderRadius: 8, padding: "6px 10px" } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat, size: "sm" }), /* @__PURE__ */ import_react.default.import_react.default.createElement("input", {
+          type: "text", placeholder: "Segelnr",
+          value: boat.sailNumber || "",
+          maxLength: 10,
+          onChange: (e2) => setBoatColors((prev) => prev.map((b, i2) => i2 === idx ? {...b, sailNumber: e2.target.value} : b)),
+          style: { width: 70, background: "var(--c-surface3)", border: "1px solid var(--c-border)", color: "var(--c-text)", borderRadius: 6, padding: "3px 6px", fontSize: 12, fontFamily: "inherit" }
+        }), createElement(
       "select",
       {
         value: boat.id,
@@ -13530,12 +13536,12 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       const cells = allHeats.map((heat) => {
         const boat = matrix?.[team.id]?.[heat.globalIdx];
         if (!boat) return `<td class="empty">-</td>`;
-        return `<td><span class="boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span></td>`;
+        return `<td><span class="boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.sailNumber || boat.label)}</span></td>`;
       }).join("");
       return `<tr><th class="team">${idx + 1}. ${escapeHtml(team.name)}</th>${cells}</tr>`;
     }).join("");
-    const legend = (boatColors || []).map((boat) => `<span class="legend-boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span>`).join("");
-    const heatDetails = allHeats.map((heat) => `<div class="heat"><h3>Flight ${heat.flightNum + 1} · Heat ${heat.globalIdx + 1}</h3>${heat.heatTeams.map((slot) => `<div><span class="boat small" style="background:${escapeHtml(slot.boat.bg)};color:${escapeHtml(slot.boat.text)}">${escapeHtml(slot.boat.label)}</span> ${escapeHtml(slot.team.name)}</div>`).join("")}</div>`).join("");
+    const legend = (boatColors || []).map((boat) => `<span class="legend-boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.sailNumber || boat.label)}</span>`).join("");
+    const heatDetails = allHeats.map((heat) => `<div class="heat"><h3>Flight ${heat.flightNum + 1} · Heat ${heat.globalIdx + 1}</h3>${heat.heatTeams.map((slot) => `<div><span class="boat small" style="background:${escapeHtml(slot.boat.bg)};color:${escapeHtml(slot.boat.text)}">${escapeHtml(slot.boat.sailNumber || slot.boat.label)}</span> ${escapeHtml(slot.team.name)}</div>`).join("")}</div>`).join("");
     const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${escapeHtml(title)} - schema</title><style>
       @page { size: A4 landscape; margin: 10mm; }
       * { box-sizing: border-box; }
@@ -13544,7 +13550,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       h1 { font-size:24px; line-height:1.1; margin:0 0 5px; }
       .meta { color:#4b5563; font-size:12px; font-weight:600; }
       .legend { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width:45%; }
-      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:3px 8px; font-size:11px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; text-align:center; }
+      .legend-boat,.boat { display:inline-block; border-radius:4px; padding:2px 4px; font-size:10px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:20px; text-align:center; }
       .boat.small { font-size:10px; min-width:44px; margin-right:5px; }
       table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; page-break-inside:auto; }
       th,td { border:1px solid #d1d5db; padding:5px 4px; text-align:center; vertical-align:middle; }
@@ -13558,7 +13564,13 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       .actions { margin:14px 0; }
       button { border:0; background:#1d4ed8; color:#fff; border-radius:7px; padding:9px 14px; font-weight:800; cursor:pointer; }
       @media print { body { padding:0; } .actions { display:none; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
-    </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="window.print()">Skriv ut</button></div><table><thead><tr><th rowspan="2" class="team">Team</th>${flightHeaders}</tr><tr>${heatHeaders}</tr></thead><tbody>${rows}</tbody></table><section class="heat-grid">${heatDetails}</section></body></html>`;
+    </style></head><body>
+      <div class="no-print" style="display:flex;gap:10px;margin-bottom:16px;">
+        <button onclick="window.close()" style="background:#1e40af;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">← Tillbaka</button>
+        <button onclick="window.print()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">🖨 Skriv ut</button>
+      </div>
+      <style>@media print{.no-print{display:none!important}}</style>
+      <header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="window.print()">Skriv ut</button></div><table><thead><tr><th rowspan="2" class="team">Team</th>${flightHeaders}</tr><tr>${heatHeaders}</tr></thead><tbody>${rows}</tbody></table><section class="heat-grid">${heatDetails}</section></body></html>`;
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
       window.alert("Webbläsaren blockerade utskriftsfönstret. Tillåt popups för appen och prova igen.");
@@ -13800,7 +13812,22 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       padding: "10px 12px",
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "flex", gap: 8, alignItems: "flex-start", background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "10px 12px", cursor: "default" } }, /* @__PURE__ */ import_react.default.createElement("input", { type: "checkbox", checked: true, disabled: true, onChange: () => setOpponentVariation(true), style: { marginTop: 2 } }), /* @__PURE__ */ import_react.default.createElement("span", null, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 13, fontWeight: 800, color: "var(--c-text)", marginBottom: 3 } }, "Motst\xE5ndarvariation alltid aktiv"), /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, "Schemat s\xF6ker aktivt nya kombinationer s\xE5 att samma team inte m\xF6ter varandra i on\xF6dan.")))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
+    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "flex", gap: 8, alignItems: "flex-start", background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "10px 12px", cursor: "default" } }, /* @__PURE__ */ import_react.default.createElement("input", { type: "checkbox", checked: true, disabled: true, onChange: () => setOpponentVariation(true), style: { marginTop: 2 } }), /* @__PURE__ */ import_react.default.createElement("span", null, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 13, fontWeight: 800, color: "var(--c-text)", marginBottom: 3 } }, "Motst\xE5ndarvariation alltid aktiv"), /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, "Schemat s\xF6ker aktivt nya kombinationer s\xE5 att samma team inte m\xF6ter varandra i on\xF6dan.")))),
+    /* Båtvisning toggle */
+    /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginTop: 10, marginBottom: 4 } },
+      /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-muted)", fontWeight: 600 } }, "Visa i schema:"),
+      ["color", "sailNumber"].map((mode) => /* @__PURE__ */ import_react.default.createElement("button", {
+        key: mode,
+        onClick: () => setBoatDisplay(mode),
+        style: {
+          background: boatDisplay === mode ? "var(--c-accent)" : "var(--c-surface2)",
+          color: boatDisplay === mode ? "#fff" : "var(--c-text)",
+          border: "none", borderRadius: 7, padding: "5px 12px",
+          fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
+        }
+      }, mode === "color" ? "Färg" : "Segelnummer"))
+    ),
+    /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
       ["Team", teams.length],
       ["B\xE5tar", numBoats],
       ["Heats totalt", generated ? totalHeats : numRounds * numBoats * Math.ceil((teams.length || 1) / numBoats)],
@@ -13861,7 +13888,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
               padding: "3px 7px",
               fontWeight: 700,
               fontSize: 11
-            } }, boat.label) : /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "var(--c-surface3)", fontSize: 14 } }, "\u2014")
+            } }, (boatDisplay === "sailNumber" && boat.sailNumber) ? boat.sailNumber : boat.label) : /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "var(--c-surface3)", fontSize: 14 } }, "\u2014")
           );
         })
       ), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "6px 8px", textAlign: "center", borderBottom: "1px solid var(--c-border)", borderLeft: "2px solid var(--c-border)", color: "var(--c-muted)", fontSize: 12, fontWeight: 600 } }, racedHeats, " race"));
@@ -13881,7 +13908,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       const cycleFlights = flightGroups.filter((fg) => fg.fi === ci);
       const cycleAllHeats = cycleFlights.flatMap((fg) => fg.heats.map((h) => allHeats[h.globalIdx])).filter(Boolean);
       if (cycleAllHeats.length === 0) return null;
-      return /* @__PURE__ */ import_react.default.createElement("div", { key: ci }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 800, color: "var(--c-accent)", letterSpacing: "0.08em", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, height: 1, background: "var(--c-border)" } }), "FLIGHT ", ci + 1, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, height: 1, background: "var(--c-border)" } })), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px,1fr))", gap: 8 } }, cycleAllHeats.map((heat) => /* @__PURE__ */ import_react.default.createElement("div", { key: heat.globalIdx, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 7 } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-accent)" } }, "Heat ", heat.globalIdx + 1), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10, color: "var(--c-muted)" } }, "Flight ", heat.flightNum + 1)), heat.heatTeams.map((slot) => /* @__PURE__ */ import_react.default.createElement("div", { key: slot.team.id, style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4 } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "inline-block", background: slot.boat.bg, color: slot.boat.text, borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 700, flexShrink: 0 } }, slot.boat.label), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-text)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, slot.team.name))), heat.sitOut && heat.sitOut.length > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 6, paddingTop: 5, borderTop: "1px solid var(--c-border)", display: "flex", gap: 4, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10, color: "var(--c-muted)" } }, "Vila:"), heat.sitOut.map((t) => /* @__PURE__ */ import_react.default.createElement("span", { key: t.id, style: { fontSize: 10, color: "var(--c-muted)", fontStyle: "italic" } }, t.name)))))));
+      return /* @__PURE__ */ import_react.default.createElement("div", { key: ci }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 800, color: "var(--c-accent)", letterSpacing: "0.08em", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, height: 1, background: "var(--c-border)" } }), "FLIGHT ", ci + 1, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, height: 1, background: "var(--c-border)" } })), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px,1fr))", gap: 8 } }, cycleAllHeats.map((heat) => /* @__PURE__ */ import_react.default.createElement("div", { key: heat.globalIdx, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 7 } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-accent)" } }, "Heat ", heat.globalIdx + 1), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10, color: "var(--c-muted)" } }, "Flight ", heat.flightNum + 1)), heat.heatTeams.map((slot) => /* @__PURE__ */ import_react.default.createElement("div", { key: slot.team.id, style: { display: "flex", alignItems: "center", gap: 6, marginBottom: 4 } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "inline-block", background: slot.boat.bg, color: slot.boat.text, borderRadius: 4, padding: "1px 6px", fontSize: 10, fontWeight: 700, flexShrink: 0 } }, (boatDisplay === "sailNumber" && slot.boat.sailNumber) ? slot.boat.sailNumber : slot.boat.label), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-text)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, slot.team.name))), heat.sitOut && heat.sitOut.length > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 6, paddingTop: 5, borderTop: "1px solid var(--c-border)", display: "flex", gap: 4, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10, color: "var(--c-muted)" } }, "Vila:"), heat.sitOut.map((t) => /* @__PURE__ */ import_react.default.createElement("span", { key: t.id, style: { fontSize: 10, color: "var(--c-muted)", fontStyle: "italic" } }, t.name)))))));
     }))), generated && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-cta", onClick: onNext, style: { width: "100%" } }, "G\xE5 till startpanelen \u2192"));
   }
   function getActivePhase(eff) {
