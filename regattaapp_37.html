@@ -16,6 +16,7 @@
 .schedule-matrix th,.schedule-matrix td { padding:10px 12px !important; vertical-align:middle; }
 .schedule-matrix td { min-width:150px; }
 .schedule-matrix td span { white-space:nowrap; font-size:13px !important; line-height:1.45 !important; }
+.schedule-matrix td span.result-place { font-size:24px !important; font-weight:900; }
 .schedule-matrix thead th { font-size:13px !important; }
 .crew-schedule tbody td:first-child,.crew-schedule thead th:first-child,.crew-schedule tfoot td:first-child { position:sticky; left:0; z-index:2; background:var(--c-surface); min-width:190px; max-width:260px; white-space:normal !important; overflow-wrap:anywhere; }
 .crew-schedule thead th:first-child { z-index:3; }
@@ -26,13 +27,13 @@
 .boat-schedule th:nth-child(-n+2),.boat-schedule td:nth-child(-n+2) { min-width:70px; }
 .boat-schedule th span { white-space:nowrap; font-size:13px !important; }
 
-.crew-schedule { table-layout:fixed !important; width:calc(var(--heat-count) * 180px + 280px) !important; }
-.crew-schedule th,.crew-schedule td { width:180px; min-width:0 !important; }
+.crew-schedule { table-layout:fixed !important; width:calc(var(--heat-count) * 220px + 280px) !important; }
+.crew-schedule th,.crew-schedule td { width:220px; min-width:0 !important; }
 .crew-schedule th:first-child,.crew-schedule td:first-child { width:190px !important; max-width:190px !important; }
 .crew-schedule th:last-child,.crew-schedule td:last-child { width:90px; }
 .crew-schedule td span { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 @media(max-width:600px) {
- .crew-schedule { width:calc(var(--heat-count) * 180px + 220px) !important; }
+ .crew-schedule { width:calc(var(--heat-count) * 220px + 220px) !important; }
  .crew-schedule th:first-child,.crew-schedule td:first-child { width:130px !important; max-width:130px !important; }
 }
 </style>
@@ -12761,7 +12762,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   function numberedBoat(boat, number, mode=boat.identityMode || (boat.number==null?'color':'number')) {
     const color=BOAT_PALETTE.find(c=>c.id===(boat.colorId||boat.id))||BOAT_PALETTE[0];
     const label=mode==='color'?color.label:mode==='both'?`${color.label} · ${number}`:String(number);
-    const bg=mode==='number'?'#e2e8f0':color.bg, text=mode==='number'?'#0f172a':color.text;
+    const bg=color.bg, text=color.text;
     if(boat.number===String(number)&&boat.label===label&&boat.bg===bg&&boat.text===text&&boat.identityMode===mode&&boat.colorId===color.id)return boat;
     return {...boat,number:String(number),colorId:color.id,identityMode:mode,label,bg,text};
   }
@@ -12771,7 +12772,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const mode=regatta.boatIdentity||boatColors[0]?.identityMode||'both';
     return h('div',null,
       h('label',{style:{display:'block',fontSize:13,marginBottom:12}},'Identifiera båtar med',h('select',{className:'inp','aria-label':'Identifiera båtar med',value:mode,onChange:e=>setRegatta(r=>({...r,boatIdentity:e.target.value})),style:{marginTop:5}},
-        h('option',{value:'both'},'Färg och segelnummer'),h('option',{value:'color'},'Färg'),h('option',{value:'number'},'Segelnummer'))),
+        h('option',{value:'both'},'Färg och segelnummer'),h('option',{value:'color'},'Färg'),h('option',{value:'number'},'Segelnummer på båtfärg'))),
       h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10}},boatColors.slice(0,numBoats).map((boat,index)=>h('div',{key:boat.id,style:{background:'var(--c-surface2)',padding:12,borderRadius:8}},
         h(BoatChip,{boat}),
         mode!=='number'&&h('label',{style:{display:'block',fontSize:12,marginTop:8}},`Båt ${index+1} – färg`,h('select',{className:'inp','aria-label':`Båtfärg ${index+1}`,value:boat.colorId,onChange:e=>{const colorId=e.target.value;setBoatColors(prev=>prev.map(b=>b.id===boat.id?numberedBoat({...b,colorId},b.number,mode):b));},style:{marginTop:4}},BOAT_PALETTE.map(c=>h('option',{key:c.id,value:c.id,disabled:boatColors.some(b=>b.id!==boat.id&&b.colorId===c.id)},c.label)))),
@@ -12844,19 +12845,19 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         onKeyDown: e => { if (e.key === "Enter") { e.preventDefault(); commit(); } }
       }), boat.legacyLabel && import_react.default.createElement("span", { style: { display: "block", marginTop: 4 } }, `Tidigare: ${boat.legacyLabel}`), error && import_react.default.createElement("span", { role: "alert", style: { color: "#ef4444", display: "block", marginTop: 4 } }, error));
   }
+  function LiveSailNumberEditor({boats,activeBoats,onRename}) {
+    const h=import_react.default.createElement;
+    const [message,setMessage]=(0,import_react.useState)("");
+    return h('details',{style:{maxWidth:900,margin:'0 auto 16px',padding:14,background:'var(--c-surface)',border:'1px solid var(--c-border)',borderRadius:10}},
+      h('summary',{style:{fontWeight:800,cursor:'pointer'}},'Byt segelnummer'),
+      h('p',{style:{fontSize:13,lineHeight:1.5,margin:'10px 0'}},'Vid segelbyte: ändra numret för samma båt. Lämna fältet eller tryck Enter för att spara. Startklockan fortsätter och schema, placeringar och måltider behålls. Det nya numret visas även i sparade resultat.'),
+      h('div',{style:{display:'flex',flexWrap:'wrap',gap:14}},activeBoats.map((boat,index)=>h('div',{key:boat.id,style:{padding:10,background:'var(--c-surface2)',borderRadius:8}},
+        h(BoatChip,{boat}),h('div',{style:{marginTop:8}},h(BoatNumberInput,{boat,boats,index,onSave:number=>{
+          onRename(boat.id,number);setMessage(`Segelnummer ändrat från ${boat.number} till ${number}.`);
+        }}))))),
+      message&&h('p',{role:'status',style:{fontSize:13,marginTop:10}},message));
+  }
   var START_PHASES = [
-    {
-      id: "prep",
-      minutesBefore: 5,
-      label: "F\xF6rberedelse",
-      flagUp: [],
-      flagDown: [],
-      sound: "\u2014",
-      desc: "Plocka fram flaggorna 3, 2 och 1. Sekvensen b\xF6rjar om 2 minuter.",
-      actionNote: "F\xF6rbered: Flagga 3, Flagga 2, Flagga 1",
-      isPrep: true,
-      activeFlagsUp: []
-    },
     {
       id: "warning",
       minutesBefore: 3,
@@ -12896,7 +12897,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       label: "START \u2014 ta ned flagga 1",
       flagUp: [],
       flagDown: ["Flagga 1"],
-      sound: "1 l\xE5ng signal",
+      sound: "Start (tal)",
       desc: "Ta ned flagga 1 \u2014 RACE STARTAR!",
       actionNote: "Ta ned: Flagga 1 \u2192 RACE STARTAR",
       activeFlagsUp: []
@@ -12959,7 +12960,17 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       halaNote: "Ta ned svart flagga vid START. DSQ g\xE4ller \xE4ven vid omstart."
     }
   ];
+  // Keep the stored elapsed-time origin compatible with existing live regattas.
   var RACE_START_AT = 5 * 60;
+  var START_DURATION = 3 * 60;
+  function countdownCue(secondsLeft) {
+    if(secondsLeft===0)return {speech:"Start"};
+    const words=["", "ett", "två", "tre", "fyra", "fem", "sex", "sju", "åtta", "nio", "tio"];
+    if(secondsLeft>0&&secondsLeft<=10)return {speech:words[secondsLeft]};
+    if(secondsLeft>10&&secondsLeft%60===0)return {beep:true};
+    if(secondsLeft>10&&secondsLeft%60<=3)return {speech:words[secondsLeft%60]};
+    return null;
+  }
   var pad = (n) => String(Math.abs(n)).padStart(2, "0");
   var fmtTime = (secs) => {
     const neg = secs < 0;
@@ -13386,10 +13397,10 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     }
     return schedule;
   }
-  function minimizeSprintChanges(schedule, teams) {
+  function minimizeSprintChanges(schedule, teams, lockedHeats = new Set()) {
     const next=schedule.map(f=>f.map(h=>({...h,heatTeams:h.heatTeams.map(s=>({...s}))})));
     const visits=new Map(teams.map(t=>[t.id,[]]));const heats=next.flat();heats.forEach((h,index)=>h.heatTeams.forEach(s=>visits.get(s.team.id).push({slot:s,index})));
-    const cost=id=>{const v=visits.get(id);let changes=0,direct=0;for(let i=1;i<v.length;i++)if(v[i].slot.boat.id!==v[i-1].slot.boat.id){changes++;if(v[i].index===v[i-1].index+1)direct++;}return changes*1000+direct;};
+    const cost=id=>{const v=visits.get(id);let direct=0;for(let i=1;i<v.length;i++)if(v[i].index===v[i-1].index+1 && v[i].slot.boat.id!==v[i-1].slot.boat.id)direct++;return direct;};
     const colors=[...new Set(heats.flatMap(h=>h.heatTeams.map(s=>s.boat.id)))];
     // Alternating cycles in the crew/race graph preserve exact per-crew boat counts.
     // Every affected race still has the same boats and the same crews.
@@ -13397,7 +13408,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       let improved=false;
       for(let a=0;a<colors.length;a++)for(let b=a+1;b<colors.length;b++){
         const edges=new Map(teams.map(t=>[t.id,[]]));
-        for(const heat of heats){const x=heat.heatTeams.find(s=>s.boat.id===colors[a]),y=heat.heatTeams.find(s=>s.boat.id===colors[b]);if(x&&y)edges.get(x.team.id).push({x,y,to:y.team.id});}
+        for(const [heatIndex,heat] of heats.entries()){if(lockedHeats.has(heatIndex)||heat.final)continue;const x=heat.heatTeams.find(s=>s.boat.id===colors[a]),y=heat.heatTeams.find(s=>s.boat.id===colors[b]);if(x&&y)edges.get(x.team.id).push({x,y,to:y.team.id});}
         let found=false;
         for(const start of teams){
           if(found)break;let budget=300;
@@ -13428,7 +13439,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const next=options.mode==='boatChanges'?minimizeSprintChanges(base,teams):base;
     next.forEach(f=>f.forEach(h=>{const racing=new Set(h.heatTeams.map(s=>s.team.id));h.sitOut=teams.filter(t=>!racing.has(t.id));}));
     const template=SPRINT_TEMPLATES[`${teams.length}-${boats.length}`];
-    next[0][0].scheduleInfo={mode:options.mode||'allsvenskan',source:template&&totalFlights<=template.length?'Uppladdad mall':'Beräknat rotationsschema',seed,flights:totalFlights,baseChanges:scheduleMetrics(base,teams,boats).changes};
+    next[0][0].scheduleInfo={mode:options.mode||'allsvenskan',source:template&&totalFlights<=template.length?'Uppladdad mall':'Beräknat rotationsschema',seed,flights:totalFlights,objective:"consecutive",baseDirectChanges:scheduleMetrics(base,teams,boats).directChanges};
     return next;
   }
   function ScheduleQuality({schedule,teams,boats}) {
@@ -13438,28 +13449,34 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const th={padding:'7px 9px',textAlign:'left',borderBottom:'1px solid var(--c-border)',whiteSpace:'nowrap'};
     const range=list=>!list.length?'–':Math.min(...list)===Math.max(...list)?String(list[0]):`${Math.min(...list)}–${Math.max(...list)}`;
     const summaryStyle={cursor:'pointer',fontWeight:700};
-    const boatRows=metrics.rows.map(r=>h('tr',{key:r.team.id},[r.team.name,r.races,...boats.map(b=>r.counts[b.id]||0),r.changes,range(r.rests)].map((x,i)=>h('td',{key:i,style:th},x))));
+    const boatRows=metrics.rows.map(r=>h('tr',{key:r.team.id},[r.team.name,r.races,...boats.map(b=>r.counts[b.id]||0),r.directChanges,range(r.rests)].map((x,i)=>h('td',{key:i,style:th},x))));
     const boatTable=h('table',{style:{borderCollapse:'collapse',fontSize:12,width:'100%'}},
-      h('thead',null,h('tr',null,['Besättning','Seglingar',...boats.map(b=>b.label),'Byten','Vila (heat)'].map((x,i)=>h('th',{key:i,style:th},x)))),h('tbody',null,boatRows));
+      h('thead',null,h('tr',null,['Besättning','Seglingar',...boats.map(b=>b.label),'Byten utan vila','Vila (heat)'].map((x,i)=>h('th',{key:i,style:th},x)))),h('tbody',null,boatRows));
     const opponentRows=teams.map((t,i)=>h('tr',{key:t.id},h('th',{style:th},`${i+1}. ${t.name}`),teams.map(u=>h('td',{key:u.id,style:th},u.id===t.id?'–':metrics.pairs.get(JSON.stringify([t.id,u.id].sort()))||0))));
     const opponentTable=h('table',{style:{borderCollapse:'collapse',fontSize:12}},
       h('thead',null,h('tr',null,h('th',{style:th},'Besättning'),teams.map((t,i)=>h('th',{key:t.id,style:th,title:t.name},i+1)))),h('tbody',null,opponentRows));
     return h(Sect,{title:'Schemakontroll'},
       h('p',{style:{fontSize:13,lineHeight:1.6,marginBottom:10}}, info?`${info.source} · ${info.mode==='boatChanges'?'Färre båtbyten':info.mode==='mixed'?'Delvis låst schema':'Klassisk rotation'}. `:'Befintligt schema. ',
-        `${range(metrics.rows.map(r=>r.races))} seglingar per besättning. ${metrics.changes} båtbyten, varav ${metrics.directChanges} mellan två direkt på varandra följande heat. `,
-        info?.mode==='boatChanges'&&!metrics.invalid?`Grundschemat hade ${info.baseChanges} byten före optimering. `:'',
+        `${range(metrics.rows.map(r=>r.races))} seglingar per besättning. ${metrics.directChanges} båtbyten mellan direkt på varandra följande heat. ${metrics.rows.reduce((n,r)=>n+r.rests.filter(x=>x===0).length,0)-metrics.directChanges} gånger kan en besättning sitta kvar till nästa heat. `,
+        info?.mode==='boatChanges'&&info.objective==='consecutive'&&!metrics.invalid?`Före optimering: ${info.baseDirectChanges} byten mellan direkt följande heat. `:info?.mode==='boatChanges'&&info.objective!=='consecutive'?'Detta schema använder den äldre optimeringen. Välj Optimera båtar utan omlottning för det nya målet. ':' ',
         'Kontrollen gäller schemat som visas, inklusive manuella ändringar.'),
       h('p',{style:{fontSize:12,color:'var(--c-muted)',lineHeight:1.6}},`${metrics.missingPairs} besättningspar möts aldrig. Möten per par: ${range(metrics.meetings)}. Längsta vila: ${metrics.maxRest} heat. Största skillnad i en besättnings användning av olika båtar: ${metrics.maxBoatSpread} seglingar.`),
       metrics.invalid>0&&h('p',{role:'alert',style:{color:'#dc2626'}},'Schemat har konflikter eller ofullständiga omgångar. Kontrollera innan start.'),
       h('details',{style:{marginTop:12}},h('summary',{style:summaryStyle},'Båtfördelning, byten och vila per besättning'),h('div',{style:{overflowX:'auto',marginTop:8}},boatTable)),
       h('details',{style:{marginTop:12}},h('summary',{style:summaryStyle},'Motståndarmatris'),h('div',{style:{overflowX:'auto',marginTop:8}},opponentTable)));
   }
+  function canStayAboard(heats,index,boatId) {
+    if(index<1)return false;
+    const current=heats[index]?.heatTeams.find(s=>s.boat.id===boatId);
+    const previous=heats[index-1]?.heatTeams.find(s=>s.boat.id===boatId);
+    return !!current && current.team.id===previous?.team.id;
+  }
   function BoatScheduleTable({schedule,boats}) {
     const h=import_react.default.createElement;let index=0;
     const cell={padding:'8px',border:'1px solid var(--c-border)',textAlign:'left',fontSize:12};
     return h(Sect,{title:'Heat och båtar – som i mallarna'},h('div',{className:'schedule-scroll',tabIndex:0,'aria-label':'Seglingsschema med heat och båtar',style:{overflowX:'auto'}},h('table',{className:'boat-schedule',style:{borderCollapse:'collapse',width:'100%',minWidth:550}},
       h('thead',null,h('tr',null,h('th',{style:cell},'Omgång'),h('th',{style:cell},'Heat'),boats.map(b=>h('th',{key:b.id,style:cell},h(BoatChip,{boat:b,size:'sm'}))))),
-      h('tbody',null,schedule.flatMap((f,fi)=>f.map(heat=>h('tr',{key:index},h('td',{style:cell},fi+1),h('td',{style:cell},++index),boats.map(b=>h('td',{key:b.id,style:cell},heat.heatTeams.find(s=>s.boat.id===b.id)?.team.name||'–')))))))));
+      h('tbody',null,schedule.flatMap((f,fi)=>f.map(heat=>h('tr',{key:index},h('td',{style:cell},fi+1),h('td',{style:cell},++index),boats.map(b=>h('td',{key:b.id,style:cell},heat.heatTeams.find(s=>s.boat.id===b.id)?.team.name||'–', canStayAboard(schedule.flat(),index-1,b.id)&&h('div',{style:{fontSize:12,fontWeight:800,marginTop:4,color:'var(--c-accent)'}},'Sitt kvar'))))))))));
   }
   function buildHeatMatrix(schedule, teams) {
     const allHeats = schedule.flatMap(
@@ -13487,56 +13504,54 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   function openPrintableSchedule(regatta, teams, schedule, matrix, allHeats, boatColors) {
     const title = regatta?.name || "Seglingsschema";
     const dateLine = [regatta?.place, formatDateRange(regatta)].filter(Boolean).join(" · ");
-    const flightHeaders = (schedule || []).map((flight, fi) => `<th class="flight" colspan="${flight.length}">Flight ${fi + 1}</th>`).join("");
-    const heatHeaders = (schedule || []).flatMap((flight, fi) => flight.map((_, hi) => {
-      const heatNo = (schedule || []).slice(0, fi).reduce((sum, f) => sum + f.length, 0) + hi + 1;
-      return `<th>H${heatNo}</th>`;
-    })).join("");
-    const rows = (teams || []).map((team, idx) => {
-      const cells = allHeats.map((heat) => {
-        const boat = matrix?.[team.id]?.[heat.globalIdx];
-        if (!boat) return `<td class="empty">-</td>`;
-        return `<td><span class="boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span></td>`;
-      }).join("");
-      return `<tr><th class="team">${idx + 1}. ${escapeHtml(team.name)}</th>${cells}</tr>`;
-    }).join("");
-    const legend = (boatColors || []).map((boat) => `<span class="legend-boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span>`).join("");
-    const heatDetails = allHeats.map((heat) => `<div class="heat"><h3>Flight ${heat.flightNum + 1} · Heat ${heat.globalIdx + 1}</h3>${heat.heatTeams.map((slot) => `<div><span class="boat small" style="background:${escapeHtml(slot.boat.bg)};color:${escapeHtml(slot.boat.text)}">${escapeHtml(slot.boat.label)}</span> ${escapeHtml(slot.team.name)}</div>`).join("")}</div>`).join("");
-    const boatTable = `<h2>Heat och båtar</h2><table class="boat-table"><colgroup><col style="width:65px"><col style="width:55px">${boatColors.map(()=>"<col>").join("")}</colgroup><thead><tr><th>Omgång</th><th>Heat</th>${boatColors.map(b=>`<th>${escapeHtml(b.label)}</th>`).join("")}</tr></thead><tbody>${allHeats.map(h=>`<tr><td>${h.flightNum+1}</td><td>${h.globalIdx+1}</td>${boatColors.map(b=>`<td>${escapeHtml(h.heatTeams.find(s=>s.boat.id===b.id)?.team.name||"–")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-    const chunks=[];let group=[],count=0;
-    (schedule||[]).forEach((flight,fi)=>{if(count+flight.length>6&&group.length){chunks.push(group);group=[];count=0;}group.push({flight,fi});count+=flight.length;});if(group.length)chunks.push(group);
-    const crewTables=chunks.map(chunk=>{
-      const heats=allHeats.filter(h=>chunk.some(g=>g.fi===h.flightNum));
-      return `<section class="matrix-chunk"><h2>Besättningsschema · omgång ${chunk[0].fi+1}–${chunk[chunk.length-1].fi+1}</h2><table><thead><tr><th class="team">Besättning</th>${heats.map(h=>`<th>O${h.flightNum+1} · H${h.globalIdx+1}</th>`).join("")}</tr></thead><tbody>${teams.map(t=>`<tr><th class="team">${escapeHtml(t.name)}</th>${heats.map(h=>{const b=matrix?.[t.id]?.[h.globalIdx];return `<td>${b?`<span class="boat" style="background:${escapeHtml(b.bg)};color:${escapeHtml(b.text)}">${escapeHtml(b.label)}</span>`:"–"}</td>`;}).join("")}</tr>`).join("")}</tbody></table></section>`;
+    const badge = boat => `<span class="boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span>`;
+    const legend = boatColors.map(badge).join("");
+    // Wide columns take precedence over fitting every heat onto one sheet.
+    const maxLabelLength = Math.max(0,...boatColors.map(b=>String(b.label||'').length));
+    const columnsPerPage = maxLabelLength > 24 ? 3 : 4;
+    const boatGroups=[];
+    for(let i=0;i<boatColors.length;i+=columnsPerPage)boatGroups.push(boatColors.slice(i,i+columnsPerPage));
+    const boatTable = boatGroups.map((boats,i)=>`<section class="boat-chunk"><h2>Heat och båtar${boatGroups.length>1?` · del ${i+1} av ${boatGroups.length}`:''}</h2><table class="boat-table"><colgroup><col style="width:75px"><col style="width:65px">${boats.map(()=>"<col>").join("")}</colgroup><thead><tr><th>Omgång</th><th>Heat</th>${boats.map(b=>`<th>${badge(b)}</th>`).join("")}</tr></thead><tbody>${allHeats.map(h=>`<tr><td>${h.flightNum+1}</td><td>${h.globalIdx+1}</td>${boats.map(b=>`<td>${escapeHtml(h.heatTeams.find(s=>s.boat.id===b.id)?.team.name||"–")}${canStayAboard(allHeats,h.globalIdx,b.id)?"<br><strong>Sitt kvar</strong>":""}</td>`).join("")}</tr>`).join("")}</tbody></table></section>`).join('');
+    const chunks=[];let group=[];
+    (schedule||[]).forEach((flight,fi)=>{
+      const heats=allHeats.filter(h=>h.flightNum===fi);
+      if(group.length+heats.length>columnsPerPage&&group.length){chunks.push(group);group=[];}
+      for(const heat of heats){group.push(heat);if(group.length===columnsPerPage){chunks.push(group);group=[];}}
+    });
+    if(group.length)chunks.push(group);
+    const crewTables=chunks.map(heats=>{
+      return `<section class="matrix-chunk"><h2>Besättningsschema · heat ${heats[0].globalIdx+1}–${heats[heats.length-1].globalIdx+1}</h2><table><colgroup><col style="width:190px">${heats.map(()=>'<col>').join('')}</colgroup><thead><tr><th class="team">Besättning</th>${heats.map(h=>`<th>Omgång ${h.flightNum+1}<br><strong>Heat ${h.globalIdx+1}</strong></th>`).join("")}</tr></thead><tbody>${teams.map(t=>`<tr><th class="team">${escapeHtml(t.name)}</th>${heats.map(h=>{const b=matrix?.[t.id]?.[h.globalIdx];return `<td>${b?badge(b):"–"}</td>`;}).join("")}</tr>`).join("")}</tbody></table></section>`;
     }).join("");
     const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${escapeHtml(title)} - schema</title><style>
       @page { size: A4 landscape; margin: 10mm; }
       * { box-sizing: border-box; }
-      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:#111827; background:#fff; margin:0; padding:24px; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:#111827; background:#fff; margin:0 auto; padding:24px; max-width:277mm; }
       header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; border-bottom:2px solid #111827; padding-bottom:12px; margin-bottom:14px; }
       h1 { font-size:24px; line-height:1.1; margin:0 0 5px; }
       .meta { color:#4b5563; font-size:12px; font-weight:600; }
       .legend { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width:45%; }
-      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:3px 8px; font-size:13px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; max-width:100%; white-space:normal; line-height:1.4; text-align:center; }
+      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:6px 10px; font-size:14px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; max-width:100%; white-space:normal; line-height:1.4; text-align:center; }
       .matrix-chunk { margin-top:24px; }
       thead { display:table-header-group; }
       h2 { break-after:avoid; font-size:18px; }
       tr { break-inside:avoid; }
-      .boat,.legend-boat,td,th { overflow-wrap:anywhere; }
+      .boat,.legend-boat,td,th { overflow-wrap:anywhere; word-break:normal; white-space:normal; }
+      .boat { max-width:100%; min-width:0; }
+      .matrix-chunk td .boat { display:block; width:100%; }
       .boat,.legend-boat { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       .boat.small { font-size:10px; min-width:44px; margin-right:5px; }
       table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; line-height:1.4; page-break-inside:auto; }
-      th,td { border:1px solid #d1d5db; padding:8px 6px; text-align:center; vertical-align:middle; }
+      th,td { border:1px solid #d1d5db; padding:10px 8px; text-align:center; vertical-align:middle; }
       thead th { background:#eef2ff; color:#111827; font-weight:900; }
       thead .flight { background:#dbeafe; font-size:11px; }
-      th.team { background:#fff; text-align:left; width:170px; font-size:12px; }
+      th.team { background:#fff; text-align:left; width:190px; font-size:12px; }
       td.empty { color:#9ca3af; background:#f9fafb; }
       .heat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:18px; page-break-before:auto; }
       .heat { border:1px solid #d1d5db; border-radius:6px; padding:8px; break-inside:avoid; font-size:11px; }
       .heat h3 { margin:0 0 6px; font-size:11px; color:#1d4ed8; }
       .actions { margin:14px 0; }
       button { border:0; background:#1d4ed8; color:#fff; border-radius:7px; padding:9px 14px; font-weight:800; cursor:pointer; }
-      @media print { body { padding:0; } .actions { display:none !important; } .matrix-chunk { break-before:page; margin-top:0; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
+      @media print { body { padding:0; } .actions { display:none !important; } .boat-chunk + .boat-chunk,.matrix-chunk { break-before:page; margin-top:0; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
     </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="if(window.opener &amp;&amp; !window.opener.closed) window.opener.focus(); window.close();">← Tillbaka</button><button onclick="window.print()">Skriv ut</button></div>${boatTable}${crewTables}</body></html>`;
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -13559,16 +13574,16 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       const raceCells = (scoredHeats || []).map((heat) => {
         const race = raceByTeamHeat?.[entry.team.id]?.[heat.globalIdx];
         if (!race) return `<td class="muted">-</td>`;
-        const label = race.code && race.code !== "fin" ? race.code : `#${race.place}`;
-        return `<td><strong>${escapeHtml(label)}</strong><span>Båt ${escapeHtml(race.boat?.label || "–")}</span><span>${escapeHtml(fmtPts(race.pts))}p</span></td>`;
+        const label = race.code && race.code !== "fin" ? race.code : `${race.place}`;
+        return `<td><strong>${escapeHtml(label)}</strong><span>${escapeHtml(fmtPts(race.pts))}p</span></td>`;
       }).join("");
       const crew = crewText(entry.team);
       return `<tr><td class="place">${i + 1}</td><td class="team"><strong>${escapeHtml(entry.team.name)}</strong>${crew ? `<span>${escapeHtml(crew)}</span>` : ""}</td><td class="points">${escapeHtml(fmtPts(entry.points))}p</td>${raceCells}</tr>`;
     }).join("");
     const finalHtml = finalData ? `<section class="final"><h2>${finalData.result ? "Finalresultat" : "Till final"}</h2><table><thead><tr><th>Grundserie</th><th>Besättning</th><th>Med till final</th>${finalData.result ? "<th>Final</th><th>Totalt</th>" : ""}</tr></thead><tbody>${finalData.rows.map((row, i) => {
-      const finalText = !finalData.result ? "" : row.code && row.code !== "fin" ? row.code : `#${row.finalPlace}`;
+      const finalText = !finalData.result ? "" : row.code && row.code !== "fin" ? row.code : `${row.finalPlace}`;
       const crew = crewText(row.team);
-      return `<tr><td class="place">${escapeHtml(row.seriesPlace || i + 1)}</td><td class="team"><strong>${escapeHtml(row.team.name)}</strong><span>Båt ${escapeHtml(row.boat?.label || "–")}</span>${crew ? `<span>${escapeHtml(crew)}</span>` : ""}</td><td class="points">${escapeHtml(fmtPts(row.seedPoints))}p</td>${finalData.result ? `<td>${escapeHtml(finalText)}${row.finalPoints != null ? ` / ${escapeHtml(fmtPts(row.finalPoints))}p` : ""}</td><td class="points">${escapeHtml(fmtPts(row.totalPoints))}p</td>` : ""}</tr>`;
+      return `<tr><td class="place">${escapeHtml(row.seriesPlace || i + 1)}</td><td class="team"><strong>${escapeHtml(row.team.name)}</strong>${crew ? `<span>${escapeHtml(crew)}</span>` : ""}</td><td class="points">${escapeHtml(fmtPts(row.seedPoints))}p</td>${finalData.result ? `<td>${escapeHtml(finalText)}${row.finalPoints != null ? ` / ${escapeHtml(fmtPts(row.finalPoints))}p` : ""}</td><td class="points">${escapeHtml(fmtPts(row.totalPoints))}p</td>` : ""}</tr>`;
     }).join("")}</tbody></table></section>` : "";
     const filename = `${(title || "regatta").toLowerCase().replace(/[^a-z0-9åäö_-]+/gi, "-").replace(/^-+|-+$/g, "") || "regatta"}_slutstallning`;
     const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${escapeHtml(filename)}</title><style>
@@ -13710,6 +13725,17 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       setEditMode(false);
       setSwapA(null);
     };
+    const optimizeExisting = () => {
+      if(liveState?.livePhase && liveState.livePhase!=="idle"){window.alert("Avsluta pågående start/heat innan du ändrar båttilldelningen.");return;}
+      const flat=schedule.flat();let lastLocked=-1;
+      flat.forEach((heat,i)=>{if(results?.[`g${i}`])lastLocked=i;});
+      const locked=new Set(flat.map((h,i)=>i).filter(i=>i<=lastLocked||flat[i].final));
+      const before=scheduleMetrics(schedule.filter(f=>!f.some(h=>h.final)),teams,activeBoats).directChanges;
+      const next=minimizeSprintChanges(schedule,teams,locked);
+      if(!next.length)return;
+      next[0][0]={...next[0][0],scheduleInfo:{...(next[0][0].scheduleInfo||{}),mode:"boatChanges",objective:"consecutive",source:"Befintligt schema, samma heatordning",flights:next.length,baseDirectChanges:before}};
+      setSchedule(next);setScheduleMode("boatChanges");setEditMode(false);setSwapA(null);
+    };
     const { allHeats, matrix } = buildHeatMatrix(schedule, teams);
     const totalHeats = allHeats.length;
     const printSchedule = () => openPrintableSchedule(regatta, teams, schedule, matrix, allHeats, activeBoats);
@@ -13768,7 +13794,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const heatSizeText = getBalancedHeatSizes(teams.length || 1, numBoats).join("+");
     return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 1400, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Schemainformation" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", marginBottom: 8 } }, "Varje omgång (flight) innehåller ett heat per besättning. Heatstorlek: ", heatSizeText, "."), import_react.default.createElement("label", { style: { fontSize: 13 } }, "Antal omgångar", import_react.default.createElement("input", { className:"inp", type:"number", min:1, max:48, value:numFlights, "aria-label":"Antal omgångar", onChange:e=>setNumFlights(Math.max(1,Math.min(48,Number(e.target.value)||1))), style:{width:100,marginLeft:10} })), import_react.default.createElement("p", { style:{fontSize:12,color:"var(--c-muted)",marginTop:8,lineHeight:1.5} }, SPRINT_TEMPLATES[`${teams.length}-${numBoats}`] && numFlights<=15 ? "Använder din uppladdade mall (upp till 15 omgångar). Besättningarna lottas till mallens platser." : "Ingen uppladdad mall för denna kombination/längd. Appen beräknar ett rotationsschema med jämna heat och varierade motståndare.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginTop: 14 } }, [
       ["allsvenskan", "Klassisk rotation", "Samma struktur som exempelschemana. Använder uppladdad mall när den passar."],
-      ["boatChanges", "Färre båtbyten", "Optimerar båttilldelningen i samma grundschema. Bevarar motståndare, vila och varje besättnings antal seglingar i varje båt."]
+      ["boatChanges", "Färre båtbyten", "Låt besättningen sitta kvar i samma båt när den seglar nästa heat direkt. Båtbyte efter vila räknas inte. Motståndare, vila och båtfördelning bevaras."]
     ].map(([id, title, desc]) => /* @__PURE__ */ import_react.default.createElement("button", { key: id, onClick: () => setScheduleMode(id), style: {
       textAlign: "left",
       background: scheduleMode === id ? "rgba(110,168,254,0.18)" : "var(--c-surface2)",
@@ -13778,12 +13804,12 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       padding: "10px 12px",
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), import_react.default.createElement("p", { style:{gridColumn:"1 / -1",fontSize:12,lineHeight:1.5,color:"var(--c-muted)"} }, "Färre båtbyten är en sökning efter förbättringar, inte en garanti för minsta möjliga antal. Jämför det faktiska schemat i schemakontrollen.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
+    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), import_react.default.createElement("p", { style:{gridColumn:"1 / -1",fontSize:12,lineHeight:1.5,color:"var(--c-muted)"} }, "Motståndarvariation prioriteras först. Optimeringen behåller alla möten och minskar sedan båtbyten mellan direkt följande heat. Efter ett eller flera vilande heat får besättningen byta båt. Den söker förbättringar men garanterar inte att alla direktbyten försvinner.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
       ["Team", teams.length],
       ["B\xE5tar", numBoats],
       ["Heats totalt", generated ? totalHeats : numFlights * Math.ceil((teams.length || 1) / numBoats)],
       ["Race / team", generated ? schedule.length : numFlights]
-    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Färre båtbyten" : "Klassisk rotation"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", " Valet gäller nästa generering. Sparade scheman ändras först när du genererar igen.", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && completedHeatCount > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.36)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#FCD34D", marginBottom: 14, lineHeight: 1.5, fontWeight: 700 } }, completedHeatCount, " heat har sparade resultat och \xE4r l\xE5sta. Omgångarna fram till senast sparade heat bevaras helt."), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? completedHeatCount > 0 ? "Regenerera återstående heat" : "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
+    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Färre båtbyten" : "Klassisk rotation"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", " Valet gäller nästa generering. Sparade scheman ändras först när du genererar igen.", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && completedHeatCount > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.36)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#FCD34D", marginBottom: 14, lineHeight: 1.5, fontWeight: 700 } }, completedHeatCount, " heat har sparade resultat och \xE4r l\xE5sta. Omgångarna fram till senast sparade heat bevaras helt."), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? completedHeatCount > 0 ? "Regenerera återstående heat" : "Regenerera och lotta om" : "Generera och lotta schema"), generated && import_react.default.createElement("button", {className:"btn-primary",onClick:optimizeExisting}, "Optimera båtar utan omlottning"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
       setEditMode((e) => !e);
       setSwapA(null);
     }, style: {
@@ -13869,7 +13895,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     }
     return START_PHASES[0];
   }
-  function StartView({ regatta, teams, schedule, results, setResults, onLiveUpdate, onResultSaved, initialLiveState }) {
+  function StartView({ regatta, boatColors = [], teams, schedule, results, setResults, onLiveUpdate, onResultSaved, initialLiveState }) {
     const allHeats = schedule.flatMap(
       (flight, fi) => flight.map((heat2, hi) => ({
         ...heat2,
@@ -13879,10 +13905,14 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const [cur, setCur] = (0, import_react.useState)(0);
     const [activeHeatIdx, setActiveHeatIdx] = (0, import_react.useState)(null);
     const [phase, setPhase] = (0, import_react.useState)("idle");
-    const [elapsed, setElapsed] = (0, import_react.useState)(0);
+    const [elapsed, setElapsed] = (0, import_react.useState)(RACE_START_AT - START_DURATION);
     const [pausedAt, setPausedAt] = (0, import_react.useState)(0);
     const [totalPaused, setTotalPaused] = (0, import_react.useState)(0);
-    const [finishOrder, setFinishOrder] = (0, import_react.useState)([]);
+    const [rawFinishOrder, setFinishOrder] = (0, import_react.useState)([]);
+    const finishOrder = (0, import_react.useMemo)(() => rawFinishOrder.map(slot => {
+      const current=boatColors.find(boat=>boat.id===slot.boat?.id);
+      return current && current!==slot.boat ? {...slot,boat:current} : slot;
+    }), [rawFinishOrder,boatColors]);
     const [saved, setSaved] = (0, import_react.useState)(false);
     const [abortMode, setAbortMode] = (0, import_react.useState)(null);
     const [penaltyFlagId, setPenaltyFlagId] = (0, import_react.useState)("none");
@@ -14144,34 +14174,6 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
           setElapsed((e) => {
             const newElapsed = e + 1;
             const newEff = newElapsed - totalPaused;
-            const newSts = RACE_START_AT - newEff;
-            const minutesLeft = Math.floor(newSts / 60);
-            const secsIntoMinute = newSts % 60;
-            if (newSts > 10 && secsIntoMinute === 3 && lastBeepRef.current !== `pre-${minutesLeft}`) {
-              lastBeepRef.current = `pre-${minutesLeft}`;
-              playSignal("short");
-            }
-            if (newSts > 10 && secsIntoMinute === 2 && lastBeepRef.current !== `pre2-${minutesLeft}`) {
-              lastBeepRef.current = `pre2-${minutesLeft}`;
-              playSignal("short");
-            }
-            if (newSts > 10 && secsIntoMinute === 1 && lastBeepRef.current !== `pre1-${minutesLeft}`) {
-              lastBeepRef.current = `pre1-${minutesLeft}`;
-              playSignal("short");
-            }
-            if (newSts > 10 && secsIntoMinute === 0 && lastBeepRef.current !== `min-${minutesLeft}`) {
-              lastBeepRef.current = `min-${minutesLeft}`;
-              playSignal("long");
-            }
-            if (newSts > 0 && newSts <= 10 && lastSpokenRef.current !== newSts) {
-              lastSpokenRef.current = newSts;
-              const ord = ["tio", "nio", "\xE5tta", "sju", "sex", "fem", "fyra", "tre", "tv\xE5", "ett"];
-              speak(ord[10 - newSts]);
-            }
-            if (newSts === 0 && lastSpokenRef.current !== 0) {
-              lastSpokenRef.current = 0;
-              playSignal("start");
-            }
             if (onLiveUpdate) onLiveUpdate({
               liveHeat: activeIdx,
               livePhase: phase,
@@ -14186,7 +14188,21 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       }
       return () => clearInterval(timerRef.current);
     }, [phase, totalPaused, soundOn, activeIdx, penaltyFlagId, falseStart]);
-    const startSequence = (offsetSecs = 0) => {
+    (0, import_react.useEffect)(() => {
+      if(phase!=="running")return;
+      const secondsLeft=RACE_START_AT-eff;
+      if(lastSpokenRef.current===secondsLeft)return;
+      lastSpokenRef.current=secondsLeft;
+      const cue=countdownCue(secondsLeft);
+      if(cue?.speech)speak(cue.speech);
+      if(cue?.beep)playSignal("short");
+    }, [phase,eff,soundOn]);
+
+    (0, import_react.useEffect)(() => {
+      if(phase!=="running"||!soundOn)window.speechSynthesis?.cancel();
+    },[phase,soundOn]);
+    const startSequence = (offsetSecs = RACE_START_AT - START_DURATION) => {
+      if(soundOn)try { getAudioCtx().resume().catch(()=>{}); } catch(e) {}
       const targetHeat = getNextHeatIndex();
       if (targetHeat !== cur) setCur(targetHeat);
       setActiveHeatIdx(targetHeat);
@@ -14221,7 +14237,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       clearInterval(timerRef.current);
       setPhase("idle");
       setActiveHeatIdx(null);
-      setElapsed(0);
+      setElapsed(RACE_START_AT - START_DURATION);
       setTotalPaused(0);
       setAbortMode(null);
       setFalseStart(null);
@@ -14251,7 +14267,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       setPhase("running");
     };
     const restartAfterGeneral = () => {
-      setElapsed(0);
+      setElapsed(RACE_START_AT - START_DURATION);
       setTotalPaused(0);
       setFalseStart(null);
       setPhase("running");
@@ -14266,9 +14282,10 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       if (onLiveUpdate) onLiveUpdate({ liveHeat: activeIdx, livePhase: "postponed", liveEff: eff, livePostponed: true, liveFalseStart: null, livePenaltyFlag: penaltyFlagId });
     };
     const resumeFromPostpone = () => {
+      lastSpokenRef.current = -1;
       const newPaused = totalPaused + (elapsed - pausedAt);
       setTotalPaused(newPaused);
-      setElapsed(0);
+      setElapsed(RACE_START_AT - START_DURATION);
       setTotalPaused(0);
       setPhase("running");
       setAbortMode(null);
@@ -14281,7 +14298,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const resetAfterAbandon = () => {
       setPhase("idle");
       setActiveHeatIdx(null);
-      setElapsed(0);
+      setElapsed(RACE_START_AT - START_DURATION);
       setTotalPaused(0);
       setFinishOrder([]);
       setSaved(false);
@@ -14353,7 +14370,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       clearInterval(timerRef.current);
       setCur(idx);
       setPhase("idle");
-      setElapsed(0);
+      setElapsed(RACE_START_AT - START_DURATION);
       setTotalPaused(0);
       setFinishOrder([]);
       setFinishTimes({});
@@ -14388,7 +14405,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
           setTimeout(() => {
             clearInterval(timerRef.current);
             setCur(activeIdx + 1);
-            setElapsed(0);
+            setElapsed(RACE_START_AT - START_DURATION);
             setTotalPaused(0);
             setFinishOrder([]);
             setFinishTimes({});
@@ -14450,6 +14467,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       return START_PHASES.indexOf(p) > START_PHASES.indexOf(curPhase);
     }) : [];
     if (!heat || !heat.heatTeams) return /* @__PURE__ */ import_react.default.createElement("div", { style: { color: "var(--c-muted)", textAlign: "center", padding: 40 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 24, marginBottom: 12 } }, "\u{1F4CB}"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 8 } }, "Inget schema genererat"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13 } }, "G\xE5 till Schema-fliken och generera ett schema f\xF6rst."));
+    const h=import_react.default.createElement;
     return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 1100, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 16, alignItems: "center" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-muted)", marginRight: 4 } }, "Heat:"), allHeats.map((_, i) => {
       const done = !!results[`g${i}`];
       const active = i === activeIdx && (phase !== "idle" || activeHeatIdx != null);
@@ -14464,188 +14482,25 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         cursor: "pointer",
         fontFamily: "inherit"
     } }, i + 1, active ? " \u25CF" : done ? " \u2713" : "");
-    })), activeHeatIdx != null && cur !== activeIdx && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)", color: "#fbbf24", borderRadius: 10, padding: "8px 12px", fontSize: 12, fontWeight: 700, marginTop: -8, marginBottom: 12 } }, "Startklockan forts\xE4tter f\xF6r Heat ", activeIdx + 1, ". Du har markerat Heat ", cur + 1, " i listan."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, alignItems: "center" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 13, color: "var(--c-muted)", fontWeight: 600 } }, "Seglar:"), (heat.heatTeams || []).map((s) => s && s.team ? /* @__PURE__ */ import_react.default.createElement("div", { key: s.team.id, style: { display: "flex", alignItems: "center", gap: 6, background: "var(--c-surface2)", borderRadius: 8, padding: "5px 12px" } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: s.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 13, fontWeight: 700 } }, s.team.name)) : null), (heat.sitOut || []).length > 0 && /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-muted)" } }, "\xB7 Vila: ", heat.sitOut.map((t) => t && t.name).filter(Boolean).join(", "))), (activeDayTime?.firstStart || activeDayTime?.lastStart || formatDateRange(regatta)) && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginBottom: 14 } }, activeDayTime?.date && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 4 } }, "AKTIV DAG"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: "var(--c-text)" } }, activeDayTime.date)), activeDayTime?.firstStart && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 4 } }, "F\xD6RSTA START"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: "var(--c-text)" } }, activeDayTime.firstStart)), activeDayTime?.lastStart && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: lastStartUrgent ? "rgba(220,38,38,0.18)" : "var(--c-surface2)", border: "1px solid " + (lastStartUrgent ? "#ef4444" : "var(--c-border)"), borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: lastStartUrgent ? "#fca5a5" : "var(--c-muted)", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 4 } }, "SISTA START"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: lastStartUrgent ? "#fecaca" : "var(--c-text)" } }, activeDayTime.lastStart), lastStartRemaining != null && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 4, fontSize: 12, color: lastStartUrgent ? "#fecaca" : "var(--c-muted)", fontWeight: 700 } }, lastStartRemaining >= 0 ? `${fmtTime(lastStartRemaining)} kvar` : `Passerad med ${fmtTime(Math.abs(lastStartRemaining))}`), lastStartUrgent && lastStartRemaining >= 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 6, fontSize: 11, color: "#fecaca", lineHeight: 1.4 } }, "15 minuter eller mindre kvar till sista start."))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 320px", gap: 16, alignItems: "start" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } }, (() => {
-      let bg = "var(--c-surface)";
-      let border = "var(--c-border)";
-      let accentColor = "var(--c-text)";
-      let label = "JUST NU";
-      let flags = [];
-      let headline = "";
-      let body = "";
-      if (phase === "idle") {
-        flags = ["Orange flagga"];
-        headline = "Redo att starta";
-        body = "Tryck p\xE5 \u25B6 Starta i kontrollpanelen f\xF6r att b\xF6rja startsekvensen.";
-      } else if (phase === "postponed") {
-        bg = "rgba(120,53,15,0.2)";
-        border = "rgba(252,211,77,0.5)";
-        accentColor = "#FCD34D";
-        flags = ["Orange flagga", "AP"];
-        headline = "START UPPSKJUTEN";
-        body = "AP-flaggan \xE4r uppe \u2014 ge 2 signaler.\nTa ned AP n\xE4r du \xE4r redo \u2192 ge 1 signal \u2192 ny varning om 1 minut.";
-      } else if (phase === "abandoned") {
-        bg = "rgba(30,27,75,0.3)";
-        border = "rgba(165,180,252,0.4)";
-        accentColor = "#a5b4fc";
-        flags = ["Orange flagga", "N"];
-        headline = "SEGLING AVBRUTEN";
-        body = "N-flaggan \xE4r uppe \u2014 ge 3 signaler.\nTa ned N \u2192 ny varningssignal om 1 minut om segling g\xF6rs om.";
-      } else if (phase === "falsestart") {
-        bg = "rgba(30,27,75,0.3)";
-        border = "rgba(165,180,252,0.4)";
-        accentColor = "#93c5fd";
-        flags = falseStart === "individual" ? ["Orange flagga", "X"] : ["Orange flagga", "F\xF6rsta likhetstecken"];
-        headline = falseStart === "individual" ? "ORANGE FLAGGA, X-FLAGGA UPPE" : "ORANGE FLAGGA, 1:A REPEATER UPPE";
-        body = falseStart === "individual" ? "X-flagga upp \u2014 ge 1 signal.\nTa ned X n\xE4r b\xE5ten startat om korrekt." : "F\xF6rsta likhetstecken upp \u2014 ge 2 signaler.\nTa ned f\xF6rsta likhetstecken \u2192 ny varningssignal om 1 minut.";
-      } else if (phase === "running") {
-        if (inPrep) {
-          flags = ["Orange flagga"];
-          headline = "F\xD6RBEREDELSE";
-          body = "Plocka fram flagga 3, 2 och 1.\nSekvensen startar om " + fmtTime(sts - 3 * 60) + " \u2014 varningssignal ges.";
-          accentColor = "#fff";
-        } else if (racing) {
-          bg = "#16a34a";
-          border = "#15803d";
-          accentColor = "#000";
-          if (falseStart === "individual") {
-            bg = "rgba(30,58,138,0.3)";
-            border = "rgba(147,197,253,0.5)";
-            accentColor = "#93c5fd";
-            flags = ["Orange flagga", "X"];
-            headline = "ORANGE FLAGGA, X-FLAGGA UPPE";
-            body = "Race p\xE5g\xE5r. Ta ned X n\xE4r b\xE5ten startat om korrekt.";
-          } else {
-            flags = ["Orange flagga"];
-            headline = "RACE P\xC5G\xC5R";
-            body = "Alla startflaggor nertagna. Registrera m\xE5lg\xE5ng i panelen nedan.";
-          }
-        } else if (curPhase) {
-          flags = ["Orange flagga", ...curPhase.activeFlagsUp || []];
-          if (penaltyFlag.id !== "none" && ["warning", "preparatory", "one_minute"].includes(curPhase.id))
-            flags.push(penaltyFlag.short);
-          const upNames = curPhase.activeFlagsUp && curPhase.activeFlagsUp.length > 0 ? curPhase.activeFlagsUp.join(", ") + " uppe" : "Orange flagga uppe";
-          headline = upNames.toUpperCase();
-          body = "";
-          accentColor = "var(--c-accent)";
-        }
-      }
-      return /* @__PURE__ */ import_react.default.createElement("div", { style: { background: bg, border: `2px solid ${border}`, borderRadius: 16, padding: "22px 22px 18px", position: "relative" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", color: accentColor, marginBottom: 14, opacity: 0.8 } }, label), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 18 } }, flags.map((f) => /* @__PURE__ */ import_react.default.createElement("div", { key: f, style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: f, size: 160 }), /* @__PURE__ */ import_react.default.createElement("span", { style: {
-        fontSize: 12,
-        fontWeight: 700,
-        color: f === "Orange flagga" ? "#fb923c" : f === "AP" ? "#FCD34D" : f === "N" ? "#a5b4fc" : f === "X" ? "#93c5fd" : f === "F\xF6rsta likhetstecken" ? "#c4b5fd" : accentColor
-      } }, f)))), body.split("\n").map((line, i) => /* @__PURE__ */ import_react.default.createElement("div", { key: i, style: { fontSize: 15, color: "#000", fontWeight: i === 0 ? 600 : 400, marginBottom: 3, lineHeight: 1.5 } }, line)), curPhase && curPhase.id === "one_minute" && penaltyFlag.id !== "none" && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 8, fontSize: 13, fontWeight: 700, color: "#FCD34D", background: "rgba(252,211,77,0.1)", borderRadius: 8, padding: "8px 12px" } }, "\u26A0\uFE0F Inga b\xE5tar p\xE5 bansidan \u2014 ", penaltyFlag.rule), penaltyFlag.id !== "none" && phase === "running" && !racing && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 12, padding: "12px 14px", background: "rgba(0,0,0,0.08)", borderRadius: 10, borderLeft: "3px solid " + penaltyFlag.color } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: penaltyFlag.color, marginBottom: 4 } }, penaltyFlag.label, " betyder:"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, color: "#000", lineHeight: 1.6 } }, penaltyFlag.id === "I" && "Ingen b\xE5t f\xE5r befinna sig p\xE5 bansidan av startlinjen under sista minuten. Om en b\xE5t korsar linjen m\xE5ste den v\xE4nda och starta om korrekt runt en av m\xE4rkena.", penaltyFlag.id === "Z" && "Ingen b\xE5t f\xE5r befinna sig i zonen p\xE5 bansidan av startlinjen under sista minuten. B\xE5tar som bryter mot detta f\xE5r ett po\xE4ngstraff \u2014 \xE4ven om de inte diskvalificeras i starten.", penaltyFlag.id === "U" && "Ingen b\xE5t f\xE5r befinna sig p\xE5 bansidan av startlinjen under sista minuten. Om en b\xE5t \xE4r d\xE4r vid start diskvalificeras den utan m\xF6jlighet till protest \u2014 \xE4ven vid allm\xE4n omstart.", penaltyFlag.id === "black" && "Ingen b\xE5t f\xE5r befinna sig p\xE5 bansidan av startlinjen under sista minuten. En b\xE5t som bryter mot detta diskvalificeras permanent \u2014 diskvalificeringen g\xE4ller \xE4ven vid allm\xE4n omstart."), /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 6, fontSize: 12, color: "rgba(0,0,0,0.5)", fontWeight: 600 } }, "H\xE5ll utkik: ", penaltyFlag.id === "I" || penaltyFlag.id === "U" ? "Finns det n\xE5gon b\xE5t \xF6ver linjen p\xE5 bansidan?" : penaltyFlag.id === "Z" ? "Finns det n\xE5gon b\xE5t i zonen p\xE5 bansidan?" : "Finns det n\xE5gon b\xE5t p\xE5 bansidan?")), racing && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 14, fontSize: 56, fontWeight: 900, fontFamily: "monospace", color: "#000", letterSpacing: 3, lineHeight: 1 } }, "+", fmtTime(eff - RACE_START_AT)), phase === "running" && inPrep && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 14, fontSize: 48, fontWeight: 900, fontFamily: "monospace", color: "#000", letterSpacing: 3 } }, fmtTime(sts - 3 * 60)), phase === "running" && falseStart === "individual" && !showFalseStart && /* @__PURE__ */ import_react.default.createElement("button", { onClick: dismissIndividualFalseStart, style: {
-        marginTop: 12,
-        background: "#166534",
-        color: "#4ade80",
-        border: "none",
-        borderRadius: 8,
-        padding: "8px 16px",
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: "pointer",
-        fontFamily: "inherit"
-      } }, "\u2713 Ta ned X \u2014 race forts\xE4tter"));
-    })(), phase === "running" && !racing && remainingPhases.map((p, ri) => {
-      const secsToThis = sts - p.minutesBefore * 60;
-      const urgent = secsToThis <= 30;
-      const afterFlags = p.activeFlagsUp || [];
-      return /* @__PURE__ */ import_react.default.createElement("div", { key: p.id, style: {
-        background: "var(--c-surface)",
-        border: "1px solid var(--c-border)",
-        borderRadius: 16,
-        padding: "16px 18px",
-        opacity: ri === 0 ? 1 : 0.55
-      } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, fontWeight: 800, letterSpacing: "0.12em", color: ri === 0 ? "var(--c-accent)" : "var(--c-muted)", marginBottom: 8 } }, ri === 0 ? "N\xC4STA STEG" : `STEG +${ri + 1}`), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: ri === 0 ? 19 : 15, fontWeight: 800, color: "var(--c-text)", lineHeight: 1.3 } }, p.label), /* @__PURE__ */ import_react.default.createElement("div", { style: {
-        fontSize: ri === 0 ? 26 : 18,
-        fontWeight: 900,
-        fontFamily: "monospace",
-        color: urgent && ri === 0 ? "#ef4444" : "var(--c-muted)",
-        letterSpacing: 1,
-        flexShrink: 0
-      } }, fmtTime(secsToThis))), p.minutesBefore === 0 ? /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: {
-        width: ri === 0 ? 44 : 32,
-        height: ri === 0 ? 29 : 21,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: ri === 0 ? 28 : 20,
-        lineHeight: 1
-    } }, "\u{1F4E3}"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: ri === 0 ? 11 : 10, color: "var(--c-muted)", fontWeight: 600 } }, "1 l\xE5ng signal")), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: ri === 0 ? 13 : 12, color: "var(--c-muted)" } }, "Alla flaggor tas ned. Race startar.")) : afterFlags.length > 0 ? /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: 6 } }, afterFlags.map((f) => /* @__PURE__ */ import_react.default.createElement("div", { key: f, style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 5 } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: f, size: ri === 0 ? 88 : 64 }), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: ri === 0 ? 11 : 10, fontWeight: 600, color: "var(--c-text)" } }, f))), penaltyFlag.id !== "none" && ["warning", "preparatory", "one_minute"].includes(p.id) && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 5 } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: penaltyFlag.short, size: ri === 0 ? 88 : 64 }), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: ri === 0 ? 11 : 10, fontWeight: 600, color: penaltyFlag.color } }, penaltyFlag.label)), p.sound && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: {
-        width: ri === 0 ? 44 : 32,
-        height: ri === 0 ? 29 : 21,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: ri === 0 ? 28 : 20,
-        lineHeight: 1
-      } }, "\u{1F4E3}"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: ri === 0 ? 11 : 10, color: "var(--c-muted)", fontWeight: 600 } }, p.sound))) : /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)" } }, p.desc));
-    }), (phase === "running" || phase === "falsestart") && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 14, padding: "14px 16px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", letterSpacing: "0.1em", marginBottom: 10 } }, "TJUVSTART"), racing && !falseStart && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { background: individualRecallRemaining > 0 ? "rgba(30,58,138,0.15)" : "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "7px 8px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", fontWeight: 800 } }, "ENSKILD SENAST"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 18, color: individualRecallRemaining > 0 ? "#93c5fd" : "var(--c-muted)", fontWeight: 900, fontFamily: "monospace" } }, individualRecallRemaining, "s")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: generalRecallRemaining > 0 ? "rgba(30,27,75,0.18)" : "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "7px 8px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", fontWeight: 800 } }, "ALLM\xC4N SENAST"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 18, color: generalRecallRemaining > 0 ? "#c4b5fd" : "var(--c-muted)", fontWeight: 900, fontFamily: "monospace" } }, generalRecallRemaining, "s"))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
-      setFalseStart(null);
-      setShowFalseStart(false);
-    }, style: {
-      flex: 1,
-      padding: "10px 6px",
-      borderRadius: 10,
-      border: "none",
-      cursor: "pointer",
-      fontFamily: "inherit",
-      fontSize: 12,
-      fontWeight: 700,
-      background: !falseStart ? "#1d4ed8" : "var(--c-surface2)",
-      color: !falseStart ? "#fff" : "var(--c-muted)"
-    } }, "\u2713 Ingen"), /* @__PURE__ */ import_react.default.createElement("button", { disabled: !canIndividualRecall && falseStart !== "individual", onClick: () => canIndividualRecall && doFalseStart("individual"), style: {
-      flex: 1,
-      padding: "10px 6px",
-      borderRadius: 10,
-      border: "none",
-      cursor: canIndividualRecall || falseStart === "individual" ? "pointer" : "not-allowed",
-      fontFamily: "inherit",
-      fontSize: 12,
-      fontWeight: 700,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 4,
-      opacity: canIndividualRecall || falseStart === "individual" ? 1 : 0.45,
-      background: falseStart === "individual" ? "#1e3a8a" : "var(--c-surface2)",
-      color: falseStart === "individual" ? "#fff" : "var(--c-muted)"
-    } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "X", size: 64 }), /* @__PURE__ */ import_react.default.createElement("span", null, "Enskild"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 9, opacity: 0.75 } }, "1 signal")), /* @__PURE__ */ import_react.default.createElement("button", { disabled: !canGeneralRecall && falseStart !== "general", onClick: () => canGeneralRecall && doFalseStart("general"), style: {
-      flex: 1,
-      padding: "10px 6px",
-      borderRadius: 10,
-      border: "none",
-      cursor: canGeneralRecall || falseStart === "general" ? "pointer" : "not-allowed",
-      fontFamily: "inherit",
-      fontSize: 12,
-      fontWeight: 700,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 4,
-      opacity: canGeneralRecall || falseStart === "general" ? 1 : 0.45,
-      background: falseStart === "general" ? "#1e1b4b" : "var(--c-surface2)",
-      color: falseStart === "general" ? "#fff" : "var(--c-muted)"
-    } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "F\xF6rsta likhetstecken", size: 80 }), /* @__PURE__ */ import_react.default.createElement("span", null, "Allm\xE4n"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 9, opacity: 0.75 } }, "2 signaler"))), falseStart === "individual" && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(30,58,138,0.15)", borderRadius: 8, padding: "8px 12px" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-text)", fontWeight: 600 } }, "X-flagga uppe \u2014 1 signal given \u2014 race p\xE5g\xE5r"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: dismissIndividualFalseStart, style: {
-      background: "#4ade80",
-      color: "#000",
-      border: "none",
-      borderRadius: 7,
-      padding: "5px 12px",
-      fontSize: 12,
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "inherit"
-    } }, "Ta ned X")), falseStart === "general" && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(30,27,75,0.2)", borderRadius: 8, padding: "8px 12px" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-text)", fontWeight: 600 } }, "F\xF6rsta likhetstecken uppe \u2014 2 signaler givna"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: restartAfterGeneral, style: {
-      background: "#3b82f6",
-      color: "#000",
-      border: "none",
-      borderRadius: 7,
-      padding: "5px 12px",
-      fontSize: 12,
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "inherit"
-    } }, "Ta ned \u2014 ny sekvens"))), renderOcsPanel(), /* @__PURE__ */ import_react.default.createElement(Sect, { title: "M\xE5lregistrering" }, falseStart === "general" && phase === "falsestart" ? /* @__PURE__ */ import_react.default.createElement("div", { style: { textAlign: "center", color: "var(--c-muted)", fontSize: 14, padding: "20px 0" } }, "Allm\xE4n omstart \u2014 ta ned f\xF6rsta likhetstecken f\xF6r ny startsekvens.") : !racing && !saved ? /* @__PURE__ */ import_react.default.createElement("div", { style: { textAlign: "center", color: "var(--c-muted)", fontSize: 14, padding: "30px 0" } }, "V\xE4ntar p\xE5 start...") : /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("p", { style: { fontSize: 12, color: "var(--c-muted)", marginBottom: 14 } }, "Tryck p\xE5 teamets knapp n\xE4r de passerar m\xE5llinjen."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 } }, notFinished.map((slot) => /* @__PURE__ */ import_react.default.createElement(
+    })), activeHeatIdx != null && cur !== activeIdx && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)", color: "#fbbf24", borderRadius: 10, padding: "8px 12px", fontSize: 12, fontWeight: 700, marginTop: -8, marginBottom: 12 } }, "Startklockan forts\xE4tter f\xF6r Heat ", activeIdx + 1, ". Du har markerat Heat ", cur + 1, " i listan."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, alignItems: "center" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 13, color: "var(--c-muted)", fontWeight: 600 } }, "Seglar:"), (heat.heatTeams || []).map((s) => s && s.team ? /* @__PURE__ */ import_react.default.createElement("div", { key: s.team.id, style: { display: "flex", alignItems: "center", gap: 6, background: "var(--c-surface2)", borderRadius: 8, padding: "5px 12px" } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: s.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 13, fontWeight: 700 } }, s.team.name)) : null), (heat.sitOut || []).length > 0 && /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-muted)" } }, "\xB7 Vila: ", heat.sitOut.map((t) => t && t.name).filter(Boolean).join(", "))), (activeDayTime?.firstStart || activeDayTime?.lastStart || formatDateRange(regatta)) && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginBottom: 14 } }, activeDayTime?.date && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 4 } }, "AKTIV DAG"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: "var(--c-text)" } }, activeDayTime.date)), activeDayTime?.firstStart && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 4 } }, "F\xD6RSTA START"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: "var(--c-text)" } }, activeDayTime.firstStart)), activeDayTime?.lastStart && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: lastStartUrgent ? "rgba(220,38,38,0.18)" : "var(--c-surface2)", border: "1px solid " + (lastStartUrgent ? "#ef4444" : "var(--c-border)"), borderRadius: 10, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: lastStartUrgent ? "#fca5a5" : "var(--c-muted)", fontWeight: 700, letterSpacing: "0.07em", marginBottom: 4 } }, "SISTA START"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: lastStartUrgent ? "#fecaca" : "var(--c-text)" } }, activeDayTime.lastStart), lastStartRemaining != null && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 4, fontSize: 12, color: lastStartUrgent ? "#fecaca" : "var(--c-muted)", fontWeight: 700 } }, lastStartRemaining >= 0 ? `${fmtTime(lastStartRemaining)} kvar` : `Passerad med ${fmtTime(Math.abs(lastStartRemaining))}`), lastStartUrgent && lastStartRemaining >= 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 6, fontSize: 11, color: "#fecaca", lineHeight: 1.4 } }, "15 minuter eller mindre kvar till sista start."))), h('section',{className:'simple-start',style:{background:'var(--c-surface)',border:'2px solid var(--c-border)',borderRadius:18,padding:'24px 12px',textAlign:'center',marginBottom:18}},
+      h('div',{style:{fontSize:18,fontWeight:800,marginBottom:14}},racing?'Segling pågår':phase==='postponed'?'Start uppskjuten':phase==='abandoned'?'Segling avbruten':phase==='falsestart'?'Omstart':saved?'Heat sparat':'Tid till start'),
+      h('div',{'data-testid':'start-clock',role:'timer','aria-label':racing?'Seglingstid':'Nedräkning',style:{fontSize:'clamp(58px, 18vw, 180px)',fontWeight:900,fontFamily:'monospace',fontVariantNumeric:'tabular-nums',lineHeight:1.1,color:racing?'#15803d':phase==='running'&&sts<=10?'#dc2626':'var(--c-text)'}},racing?'+'+fmtTime(Math.max(0,eff-RACE_START_AT)):fmtTime(phase==='idle'?START_DURATION:Math.max(0,sts))),
+      h('div',{style:{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'center',marginTop:22}},
+        phase==='idle'&&h('button',{className:'btn-cta',onClick:()=>startSequence()},'▶ Starta (3 min)'),
+        phase==='idle'&&h('button',{className:'btn-cta',onClick:()=>startSequence(RACE_START_AT-20)},'⚡ Starta (20 sek)'),
+        h('button',{className:'btn-primary',onClick:()=>{if(soundOn)window.speechSynthesis?.cancel();else try{getAudioCtx().resume().catch(()=>{});}catch(e){}setSoundOn(s=>!s);}},soundOn?'🔊 Ljud på':'🔇 Ljud av'),
+        phase==='running'&&h('button',{className:'btn-primary',onClick:abortRace},'✕ Avbryt sekvensen'),
+        ['postponed','abandoned','falsestart'].includes(phase)&&h('button',{className:'btn-cta',onClick:()=>startSequence()},'Starta om (3 min)'),
+        ['postponed','abandoned','falsestart'].includes(phase)&&h('button',{className:'btn-primary',onClick:abortRace},'Avbryt')
+      )
+    ),
+    racing&&h('details',{style:{marginBottom:16}},h('summary',{style:{cursor:'pointer',fontWeight:700}},'Tjuvstart'),
+      h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginTop:10}},
+        h('button',{className:'btn-primary',disabled:!canIndividualRecall,onClick:()=>doFalseStart('individual')},'Individuell tjuvstart'),
+        h('button',{className:'btn-primary',disabled:!canGeneralRecall,onClick:()=>doFalseStart('general')},'Allmän omstart'),
+        falseStart==='individual'&&h('button',{className:'btn-primary',onClick:dismissIndividualFalseStart},'Race fortsätter')
+      )),renderOcsPanel(),
+    import_react.default.createElement(Sect, { title: "M\xE5lregistrering" }, falseStart === "general" && phase === "falsestart" ? /* @__PURE__ */ import_react.default.createElement("div", { style: { textAlign: "center", color: "var(--c-muted)", fontSize: 14, padding: "20px 0" } }, "Allm\xE4n omstart \u2014 ta ned f\xF6rsta likhetstecken f\xF6r ny startsekvens.") : !racing && !saved ? /* @__PURE__ */ import_react.default.createElement("div", { style: { textAlign: "center", color: "var(--c-muted)", fontSize: 14, padding: "30px 0" } }, "V\xE4ntar p\xE5 start...") : /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("p", { style: { fontSize: 12, color: "var(--c-muted)", marginBottom: 14 } }, "Tryck p\xE5 teamets knapp n\xE4r de passerar m\xE5llinjen."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 } }, notFinished.map((slot) => /* @__PURE__ */ import_react.default.createElement(
       "button",
       {
         key: slot.team.id,
@@ -14697,7 +14552,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         minWidth: 22,
         textAlign: "center",
         color: i === 0 ? "#FBBF24" : i === 1 ? "#94A3B8" : i === 2 ? "#C05621" : "var(--c-muted)"
-      } }, i + 1), /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: slot.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("span", { style: { flex: 1, fontSize: 13, fontWeight: 600 } }, slot.team.name), slotCode && /* @__PURE__ */ import_react.default.createElement("span", { style: {
+      } }, i + 1),  /* @__PURE__ */ import_react.default.createElement("span", { style: { flex: 1, fontSize: 13, fontWeight: 600 } }, slot.team.name), slotCode && /* @__PURE__ */ import_react.default.createElement("span", { style: {
         fontSize: 11,
         fontWeight: 700,
         borderRadius: 4,
@@ -14820,150 +14675,19 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
             gap: 5
           }
         },
-        /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: slot.boat, size: "sm" }),
+        
         slot.team.name,
         isOcs && /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10 } }, " OCS")
       );
-    })), ocsTeams.size > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 6 } }, "Markerade som OCS \u2192 po\xE4ngen s\xE4tts till ", heat.heatTeams.length + 1, "p vid sparning.")), finishOrder.length === heat.heatTeams.length && !saved && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: saveResult, style: { width: "100%", marginTop: 10 } }, "Spara Heat ", cur + 1), saved && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, background: "rgba(22,163,74,0.15)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "#4ade80", fontWeight: 700 } }, "\u2713 Sparat!"), cur < allHeats.length - 1 && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: () => goHeat(cur + 1) }, "N\xE4sta heat \u2192")))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { position: "sticky", top: 16 } }, (phase === "idle" || phase === "running" && !racing) && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "2px solid var(--c-border)", borderRadius: 14, padding: "18px 16px", marginBottom: 12, textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", letterSpacing: "0.12em", marginBottom: 8 } }, "TID TILL START"), /* @__PURE__ */ import_react.default.createElement("div", { style: {
-      fontSize: 72,
-      fontWeight: 900,
-      fontFamily: "monospace",
-      letterSpacing: 2,
-      lineHeight: 1,
-      color: phase !== "idle" && sts <= 60 ? "#ef4444" : "var(--c-text)"
-    } }, fmtTime(phase === "idle" ? RACE_START_AT : Math.max(0, sts)))), phase === "idle" && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "12px", marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-cta", onClick: () => startSequence(0), style: { width: "100%", fontSize: 15 } }, "\u25B6 Starta (5 min)"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => startSequence(RACE_START_AT - 3 * 60 - 20), style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" } }, "\u26A1 Snabbstart \u2014 3:20"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => startSequence(RACE_START_AT - 5), style: { background: "#16a34a", color: "#001b08", border: "1px solid #15803d", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" } }, "\u26A1 Supersnabbstart \u2014 5 sek")), racing && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "#16a34a", border: "1px solid #15803d", borderRadius: 14, padding: "16px", marginBottom: 12, textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#000", letterSpacing: "0.1em", marginBottom: 6 } }, "RACE TID"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 36, fontWeight: 900, fontFamily: "monospace", letterSpacing: 2, color: "#000" } }, "+", fmtTime(eff - RACE_START_AT))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, background: "rgba(234,88,12,0.1)", border: "1px solid rgba(234,88,12,0.25)", borderRadius: 10, padding: "10px 12px", marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "Orange flagga", size: 56 }), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "#fb923c", fontWeight: 600, lineHeight: 1.4 } }, "Orange flagga alltid uppe \u2014 startlinjen")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "12px", marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", marginBottom: 10 } }, "SK\xC4RPT STARTREGEL"), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, (() => {
-      const active = penaltyFlagId === "none";
-      const locked = phase === "running" && curPhase && !curPhase.isPrep;
-      return /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => !locked && setPenaltyFlagId("none"), style: {
-        width: "100%",
-        padding: "9px 12px",
-        borderRadius: 9,
-        textAlign: "left",
-        border: active ? "2px solid var(--c-accent)" : "1px solid var(--c-border)",
-        background: active ? "rgba(110,168,254,0.1)" : "var(--c-surface2)",
-        cursor: locked && !active ? "default" : "pointer",
-        fontFamily: "inherit",
-        opacity: locked && !active ? 0.4 : 1,
-        display: "flex",
-        alignItems: "center",
-        gap: 10
-      } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { width: 36, height: 24, borderRadius: 4, border: "2px dashed var(--c-border)", display: "flex", alignItems: "center", justifyContent: "center" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 14, color: "var(--c-muted)" } }, "\u2014")), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: active ? "var(--c-accent)" : "var(--c-muted)" } }, "Ingen sk\xE4rpt startregel"));
-    })(), PENALTY_FLAGS.filter((pf) => pf.id !== "none").map((pf) => {
-      const active = penaltyFlagId === pf.id;
-      const locked = phase === "running" && curPhase && !curPhase.isPrep;
-      return /* @__PURE__ */ import_react.default.createElement("button", { key: pf.id, onClick: () => !locked && setPenaltyFlagId(pf.id), style: {
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 9,
-        textAlign: "left",
-        border: active ? `2px solid ${pf.color}` : "1px solid var(--c-border)",
-        background: active ? `${pf.color}18` : "var(--c-surface2)",
-        cursor: locked && !active ? "default" : "pointer",
-        fontFamily: "inherit",
-        opacity: locked && !active ? 0.4 : 1
-      } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 8 } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: pf.short, size: 72 }), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: active ? pf.color : "var(--c-text)" } }, pf.label, " \u2014 ", pf.rule), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 1 } }, pf.desc))), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.5, borderTop: "1px solid var(--c-border)", paddingTop: 6 } }, pf.id === "I" && "S\xE4tt upp vid varningssignalen. Om en b\xE5t korsar till bansidan under sista minuten m\xE5ste den v\xE4nda runt ett m\xE4rke och starta korrekt.", pf.id === "Z" && "S\xE4tt upp vid varningssignalen. B\xE5tar i zonen p\xE5 bansidan under sista minuten f\xE5r po\xE4ngstraff \u2014 notera vilka b\xE5tar som var i zonen.", pf.id === "U" && "S\xE4tt upp vid varningssignalen. B\xE5tar som korsar till bansidan diskvalificeras direkt utan protest. G\xE4ller \xE4ven vid allm\xE4n omstart.", pf.id === "black" && "S\xE4tt upp vid varningssignalen. B\xE5tar p\xE5 bansidan diskvalificeras permanent \u2014 g\xE4ller \xE4ven vid omstart. Notera vilka b\xE5tar som bryter."));
-    })), phase === "running" && curPhase && !curPhase.isPrep && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 8, fontSize: 10, color: "var(--c-muted)", fontStyle: "italic" } }, "L\xE5st \u2014 kan inte \xE4ndras n\xE4r sekvensen \xE4r ig\xE5ng.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "12px", marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", marginBottom: 2 } }, "VIDEO"), /* @__PURE__ */ import_react.default.createElement("video", { ref: videoRef, muted: true, playsInline: true, style: { width: "100%", aspectRatio: "16/9", background: "#000", borderRadius: 8, display: videoReady ? "block" : "none", objectFit: "cover" } }), /* @__PURE__ */ import_react.default.createElement("canvas", { ref: canvasRef, style: { display: "none" } }), /* @__PURE__ */ import_react.default.createElement("button", { onClick: videoRecording ? stopLocalVideo : startLocalVideo, style: { background: videoRecording ? "#7f1d1d" : "var(--c-surface2)", color: videoRecording ? "#fecaca" : "var(--c-text)", border: videoRecording ? "1px solid rgba(248,113,113,0.4)" : "1px solid var(--c-border)", borderRadius: 8, padding: "9px", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" } }, videoRecording ? "Stoppa och spara film" : "Starta lokal filmning"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, "Filmen sparas lokalt med texten ", videoLabel, " i h\xF6rnet."), videoMessage && /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: videoMessage.includes("sparades") ? "#4ade80" : "#fca5a5", lineHeight: 1.4 } }, videoMessage)), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "12px", display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--c-muted)", marginBottom: 2 } }, "KONTROLL"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setSoundOn((s) => !s), style: {
-      background: soundOn ? "var(--c-surface2)" : "#7f1d1d",
-      color: soundOn ? "var(--c-muted)" : "#fca5a5",
-      border: "1px solid var(--c-border)",
-      borderRadius: 8,
-      padding: "9px",
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "inherit",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6
-    } }, soundOn ? "\u{1F50A} Ljud p\xE5" : "\u{1F507} Ljud av"), false && phase === "idle" && /* @__PURE__ */ import_react.default.createElement(import_react.default.Fragment, null, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-cta", onClick: () => startSequence(0), style: { width: "100%", fontSize: 15 } }, "\u25B6 Starta (5 min)"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => startSequence(RACE_START_AT - 3 * 60 - 20), style: {
-      background: "var(--c-surface2)",
-      color: "var(--c-text)",
-      border: "1px solid var(--c-border)",
-      borderRadius: 8,
-      padding: "9px",
-      fontSize: 12,
-      fontWeight: 600,
-      cursor: "pointer",
-      fontFamily: "inherit"
-    } }, "\u26A1 Snabbstart \u2014 3:20")), (phase === "running" || phase === "falsestart") && /* @__PURE__ */ import_react.default.createElement("button", { onClick: abortRace, style: {
-      background: "var(--c-surface2)",
-      color: "#f87171",
-      border: "1px solid rgba(248,113,113,0.3)",
-      borderRadius: 8,
-      padding: "9px",
-      fontSize: 12,
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "inherit"
-    } }, "\u2715 Avbryt sekvensen"), (phase === "running" || phase === "falsestart") && !abortMode && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setAbortMode("postpone"), style: {
-      width: "100%",
-      padding: "12px 14px",
-      borderRadius: 10,
-      border: "1px solid var(--c-border)",
-      cursor: "pointer",
-      fontFamily: "inherit",
-      background: "var(--c-surface2)",
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      textAlign: "left"
-    } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "AP", size: 84 }), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: "var(--c-text)", marginBottom: 2 } }, "Uppskjut start (AP)"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.5 } }, "S\xE4tt upp AP-flaggan \u2014 ge 2 signaler. AP sitter uppe tills du \xE4r redo att starta om. Ta ned AP \u2192 1 signal \u2192 ny varningssignal om 1 minut."))), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setAbortMode("abandon"), style: {
-      width: "100%",
-      padding: "12px 14px",
-      borderRadius: 10,
-      border: "1px solid var(--c-border)",
-      cursor: "pointer",
-      fontFamily: "inherit",
-      background: "var(--c-surface2)",
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      textAlign: "left"
-    } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "N", size: 84 }), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: "var(--c-text)", marginBottom: 2 } }, "Avbryt race (N)"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.5 } }, "S\xE4tt upp N-flaggan \u2014 ge 3 signaler. Ta ned N \u2192 ge 1 signal \u2192 ny varningssignal om 1 minut om race g\xF6rs om.")))), abortMode === "postpone" && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(120,53,15,0.2)", border: "1px solid rgba(120,53,15,0.6)", borderRadius: 10, padding: "10px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#FCD34D", marginBottom: 6 } }, "Bekr\xE4fta uppskjutning?"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginBottom: 8 } }, "S\xE4tt upp AP + 2 signaler."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: doPostpone, style: { flex: 1, background: "#78350f", color: "#FCD34D", border: "none", borderRadius: 7, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Ja \u2014 s\xE4tta upp AP"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setAbortMode(null), style: { background: "var(--c-surface3)", color: "var(--c-muted)", border: "none", borderRadius: 7, padding: "8px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "Avbryt"))), abortMode === "abandon" && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(30,27,75,0.3)", border: "1px solid rgba(30,27,75,0.8)", borderRadius: 10, padding: "10px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#a5b4fc", marginBottom: 6 } }, "Bekr\xE4fta avbrytning?"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginBottom: 8 } }, "S\xE4tt upp N + 3 signaler. Ta ned N \u2192 ny varning om 1 min."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: doAbandon, style: { flex: 1, background: "#1e1b4b", color: "#a5b4fc", border: "none", borderRadius: 7, padding: "8px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Ja \u2014 s\xE4tta upp N"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setAbortMode(null), style: { background: "var(--c-surface3)", color: "var(--c-muted)", border: "none", borderRadius: 7, padding: "8px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "Avbryt"))), phase === "postponed" && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "#64748b", background: "rgba(120,53,15,0.15)", borderRadius: 8, padding: "8px", lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#FCD34D" } }, "AP uppe."), " Ta ned AP \u2192 1 signal \u2192 ny varning om 1 min."), /* @__PURE__ */ import_react.default.createElement("button", { onClick: resumeFromPostpone, style: { background: "#4ade80", color: "#000", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "\u25B6 Ta ned AP \u2014 starta om"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: abortRace, style: { background: "var(--c-surface3)", color: "var(--c-muted)", border: "none", borderRadius: 8, padding: "8px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "Avbryt helt")), phase === "abandoned" && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "#64748b", background: "rgba(30,27,75,0.3)", borderRadius: 8, padding: "8px", lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#a5b4fc" } }, "N uppe."), " Ta ned N \u2192 ny varning om 1 min om ej annullerat."), /* @__PURE__ */ import_react.default.createElement("button", { onClick: restartAfterGeneral, style: { background: "#3b82f6", color: "#000", border: "none", borderRadius: 8, padding: "10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "\u25B6 Ta ned N \u2014 starta om"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: resetAfterAbandon, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "10px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" } }, "Annullera heatet")), phase === "falsestart" && falseStart === "general" && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ import_react.default.createElement("button", { onClick: restartAfterGeneral, style: { flex: 1, background: "#3b82f6", color: "#000", border: "none", borderRadius: 8, padding: "10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "\u25B6 Ta ned likhetstecken \u2014 ny sekvens"), /* @__PURE__ */ import_react.default.createElement("button", { onClick: abortRace, style: { background: "var(--c-surface3)", color: "var(--c-muted)", border: "none", borderRadius: 8, padding: "10px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "Avbryt")), racing && !showFalseStart && !falseStart && (canIndividualRecall || canGeneralRecall) && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setShowFalseStart(true), style: {
-      background: "#7c2d12",
-      color: "#fdba74",
-      border: "none",
-      borderRadius: 8,
-      padding: "10px",
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "inherit"
-    } }, "\u26A0\uFE0F Tjuvstart \xB7 E ", individualRecallRemaining, "s / A ", generalRecallRemaining, "s"), racing && !showFalseStart && !falseStart && !canGeneralRecall && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 10px", color: "var(--c-muted)", fontSize: 11, fontWeight: 700, textAlign: "center" } }, "\xC5terkallelsef\xF6nstret \xE4r st\xE4ngt"), racing && showFalseStart && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(124,45,18,0.2)", border: "1px solid rgba(124,45,18,0.6)", borderRadius: 10, padding: "10px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontWeight: 700, color: "#fdba74", fontSize: 12, marginBottom: 8 } }, "V\xE4lj \xE5tg\xE4rd:"), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ import_react.default.createElement("button", { disabled: !canIndividualRecall, onClick: () => canIndividualRecall && doFalseStart("individual"), style: {
-      flex: 1,
-      background: "#1e3a8a",
-      color: "#93c5fd",
-      border: "none",
-      borderRadius: 8,
-      padding: "8px 4px",
-      fontSize: 11,
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "inherit",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 3,
-      opacity: canIndividualRecall ? 1 : 0.45
-    } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "X", size: 64 }), /* @__PURE__ */ import_react.default.createElement("span", null, "Individuell"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 9, opacity: 0.7 } }, canIndividualRecall ? `X \xB7 1 signal \xB7 ${individualRecallRemaining}s kvar` : "St\xE4ngd efter 5s")), /* @__PURE__ */ import_react.default.createElement("button", { disabled: !canGeneralRecall, onClick: () => canGeneralRecall && doFalseStart("general"), style: {
-      flex: 1,
-      background: "#1e1b4b",
-      color: "#c4b5fd",
-      border: "none",
-      borderRadius: 8,
-      padding: "8px 4px",
-      fontSize: 11,
-      fontWeight: 700,
-      cursor: canGeneralRecall ? "pointer" : "not-allowed",
-      fontFamily: "inherit",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      gap: 3,
-      opacity: canGeneralRecall ? 1 : 0.45
-    } }, /* @__PURE__ */ import_react.default.createElement(FlagSvg, { name: "F\xF6rsta likhetstecken", size: 80 }), /* @__PURE__ */ import_react.default.createElement("span", null, "Allm\xE4n"), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 9, opacity: 0.7 } }, canGeneralRecall ? `1:a likhet \xB7 2 signaler \xB7 ${generalRecallRemaining}s kvar` : "St\xE4ngd efter 15s"))), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => setShowFalseStart(false), style: { marginTop: 6, background: "none", border: "none", color: "var(--c-muted)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" } }, "Avbryt"))))));
+    })), ocsTeams.size > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 6 } }, "Markerade som OCS \u2192 po\xE4ngen s\xE4tts till ", heat.heatTeams.length + 1, "p vid sparning.")), finishOrder.length === heat.heatTeams.length && !saved && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: saveResult, style: { width: "100%", marginTop: 10 } }, "Spara Heat ", cur + 1), saved && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, marginTop: 10 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, background: "rgba(22,163,74,0.15)", borderRadius: 8, padding: "9px 14px", fontSize: 13, color: "#4ade80", fontWeight: 700 } }, "\u2713 Sparat!"), cur < allHeats.length - 1 && /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: () => goHeat(cur + 1) }, "N\xE4sta heat \u2192"))))),
+    h('details',{style:{marginTop:18}},h('summary',{style:{cursor:'pointer',fontWeight:700}},'Videoinspelning'),
+      h('video',{ref:videoRef,muted:true,playsInline:true,style:{width:'100%',maxWidth:600,display:videoReady?'block':'none'}}),
+      h('canvas',{ref:canvasRef,style:{display:'none'}}),
+      h('button',{className:'btn-primary',style:{marginTop:10},onClick:videoRecording?stopLocalVideo:startLocalVideo},videoRecording?'Stoppa och spara film':'Starta lokal filmning'),
+      videoMessage&&h('p',null,videoMessage)
+    ));
   }
+
   var SCORE_CODES = [
     { id: "fin", label: "Finishad", short: null, color: null, desc: "Normal placering", scoreType: "place" },
     { id: "DNF", label: "DNF", short: "DNF", color: "#f97316", desc: "Startade men gick ej i m\xE5l \u2014 po\xE4ng: antal startande + 1", scoreType: "n+1" },
@@ -15177,8 +14901,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const data = getFinalResultData(regatta, teams, schedule, results);
     if (!data) return null;
     return /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, overflow: "hidden" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: "12px 14px", borderBottom: "1px solid var(--c-border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-accent)", letterSpacing: "0.08em" } }, "FINAL"), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 3 } }, data.result ? "Alla finalheat är seglade. Lägst totalpoäng vinner." : "Finalheat skapat och väntar på start.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: data.result ? "#4ade80" : "#fbbf24", fontWeight: 800 } }, data.result ? "Resultat" : "På tur")), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: compact ? "10px 12px" : "12px 14px", borderBottom: "1px solid var(--c-border)", background: "var(--c-surface2)" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, fontWeight: 900, color: "var(--c-text)", marginBottom: 8 } }, "Till final"), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(auto-fit,minmax(190px,1fr))", gap: 6 } }, data.finalists.map((row) => /* @__PURE__ */ import_react.default.createElement("div", { key: row.team.id, style: { display: "grid", gridTemplateColumns: "28px 1fr auto", alignItems: "center", gap: 7, background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "7px 8px" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 900, color: "var(--c-accent)", textAlign: "right" } }, row.seriesPlace), /* @__PURE__ */ import_react.default.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, row.team.name), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", marginTop: 2, fontWeight: 800 } }, row.finalLabel), !compact && /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: row.team })), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)", whiteSpace: "nowrap" } }, row.seedPoints, "p"))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: compact ? 540 : 640 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, ["Plac", "Besättning", "Serie", "Final", "Totalt"].map((head) => /* @__PURE__ */ import_react.default.createElement("th", { key: head, style: { background: "var(--c-surface2)", color: "var(--c-muted)", fontSize: 10, fontWeight: 900, textAlign: head === "Besättning" ? "left" : "right", padding: "7px 8px", borderBottom: "1px solid var(--c-border)" } }, head)))), /* @__PURE__ */ import_react.default.createElement("tbody", null, data.rows.map((row, i) => {
-      const finalText = row.finalPoints == null ? "Ej seglad" : row.code && row.code !== "fin" ? row.code : `#${row.finalPlace}`;
-      return /* @__PURE__ */ import_react.default.createElement("tr", { key: row.team.id }, /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 15, fontWeight: 900, color: i === 0 ? "#FBBF24" : "var(--c-text)" } }, row.finalPoints != null ? i + 1 : row.seriesPlace), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "left" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: row.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)" } }, row.team.name), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", marginTop: 2, fontWeight: 800 } }, row.finalLabel), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: row.team })))), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: "var(--c-muted)", fontWeight: 800 } }, "#", row.seriesPlace, " / ", row.seedPoints, "p"), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: row.codeObj?.color || "var(--c-text)", fontWeight: 900 } }, finalText, row.finalPoints != null ? ` / ${row.finalPoints}p` : ""), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 13, color: "var(--c-accent)", fontWeight: 900 } }, row.finalPoints != null ? `${row.totalPoints % 1 === 0 ? row.totalPoints : row.totalPoints.toFixed(1)}p` : "-"));
+      const finalText = row.finalPoints == null ? "Ej seglad" : row.code && row.code !== "fin" ? row.code : `${row.finalPlace}`;
+      return /* @__PURE__ */ import_react.default.createElement("tr", { key: row.team.id }, /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 15, fontWeight: 900, color: i === 0 ? "#FBBF24" : "var(--c-text)" } }, row.finalPoints != null ? i + 1 : row.seriesPlace), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "left" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, row.finalPoints == null && /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: row.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 900, color: "var(--c-text)" } }, row.team.name), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 10, color: "var(--c-muted)", marginTop: 2, fontWeight: 800 } }, row.finalLabel), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: row.team })))), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: "var(--c-muted)", fontWeight: 800 } }, row.seriesPlace, " / ", row.seedPoints, "p"), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 12, color: row.codeObj?.color || "var(--c-text)", fontWeight: 900 } }, finalText, row.finalPoints != null ? ` / ${row.finalPoints}p` : ""), /* @__PURE__ */ import_react.default.createElement("td", { style: { padding: "8px", borderBottom: "1px solid var(--c-border)", textAlign: "right", fontSize: 13, color: "var(--c-accent)", fontWeight: 900 } }, row.finalPoints != null ? `${row.totalPoints % 1 === 0 ? row.totalPoints : row.totalPoints.toFixed(1)}p` : "-"));
     })))));
   }
   function buildStatisticsData(teams, schedule, results) {
@@ -15303,7 +15027,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         const race = raceByTeamHeat[team.id]?.[heat.globalIdx];
         const isActive = heat.globalIdx === activeHeatIdx;
         const isPenalty = race?.code && race.code !== "fin";
-        return h("td", { key: heat.globalIdx, style: { background: isActive ? "rgba(110,168,254,0.12)" : i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", padding: "4px 4px", textAlign: "center", minWidth: 58 } }, slot ? h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 1 } }, h("span", { style: { display: "inline-block", background: slot.boat.bg, color: slot.boat.text, borderRadius: 4, padding: "1px 5px", fontSize: 10, fontWeight: 800, lineHeight: 1.25, minWidth: 30 } }, slot.boat.label), race ? h("span", { style: { fontSize: 11, fontWeight: 900, lineHeight: 1.1, color: isPenalty ? race.codeObj?.color || "#f87171" : "var(--c-text)" } }, isPenalty ? race.code : `#${race.place}`) : h("span", { style: { fontSize: 9, color: "var(--c-muted)", fontWeight: 700, lineHeight: 1.1 } }, isActive ? "P\xE5 tur" : "")) : h("span", { style: { color: "var(--c-muted)", fontSize: 10 } }, "\u2014"));
+        return h("td", { key: heat.globalIdx, style: { background: isActive ? "rgba(110,168,254,0.12)" : i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", padding: "4px 4px", textAlign: "center", minWidth: 58 } }, slot ? h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 1 } }, !race && h("span", { style: { display: "inline-block", background: slot.boat.bg, color: slot.boat.text, borderRadius: 4, padding: "1px 5px", fontSize: 10, fontWeight: 800, lineHeight: 1.25, minWidth: 30 } }, slot.boat.label), race ? h("span", { className:"result-place", style: { fontSize: 24, fontWeight: 900, lineHeight: 1.2, color: isPenalty ? race.codeObj?.color || "#f87171" : "var(--c-text)" } }, isPenalty ? race.code : `${race.place}`) : h("span", { style: { fontSize: 9, color: "var(--c-muted)", fontWeight: 700, lineHeight: 1.1 } }, isActive ? "P\xE5 tur" : "")) : h("span", { style: { color: "var(--c-muted)", fontSize: 10 } }, "\u2014"));
       }));
     });
     return h("div", { style: { background: "var(--c-surface)", borderRadius: 12, border: "1px solid var(--c-border)", overflow: "hidden" } }, title, h("div", { style: { overflowX: "auto" } }, h("table", { className:"schedule-matrix public-schedule", style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(620, 238 + allHeats.length * 58) } }, h("thead", null, headerTop, headerHeat), h("tbody", null, rows))));
@@ -15465,21 +15189,21 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       color: i === 0 ? "#FBBF24" : i === 1 ? "#94A3B8" : i === 2 ? "#C05621" : "var(--c-muted)"
     } }, i + 1), /* @__PURE__ */ import_react.default.createElement("div", { style: { minWidth: 110, color: "var(--c-text)" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, fontWeight: 700 } }, entry.team.name), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: entry.team })), /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1, display: "flex", gap: 5, flexWrap: "wrap" } }, entry.races.map((r) => {
       const ispenalty = r.code && r.code !== "fin";
-      return /* @__PURE__ */ import_react.default.createElement("div", { key: r.h, style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: r.boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement("span", { style: {
-        fontSize: 10,
-        fontWeight: 700,
-        color: ispenalty ? r.codeObj?.color || "#f87171" : "var(--c-muted)",
+      return /* @__PURE__ */ import_react.default.createElement("div", { key: r.h, style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 } },  /* @__PURE__ */ import_react.default.createElement("span", { style: {
+        fontSize: 22,
+        fontWeight: 900,
+        color: ispenalty ? r.codeObj?.color || "#f87171" : "var(--c-text)",
         background: ispenalty ? `${r.codeObj?.color}22` : "transparent",
         borderRadius: 3,
         padding: ispenalty ? "1px 4px" : "0"
-      } }, ispenalty ? r.code : `#${r.place}`, r.code === "ZFP" && r.place ? ` (${r.pts}p)` : "", r.nonExcludable ? "*" : ""));
+      } }, ispenalty ? r.code : `${r.place}`, r.code === "ZFP" && r.place ? ` (${r.pts}p)` : "", r.nonExcludable ? "*" : ""));
     })), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 900, fontSize: 18, color: "var(--c-text)", minWidth: 36, textAlign: "right" } }, entry.points % 1 === 0 ? entry.points : entry.points.toFixed(1), "p")))), notRaced.length > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 12, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)" } }, "Ej raceat:"), notRaced.map((t) => /* @__PURE__ */ import_react.default.createElement(TeamPill, { key: t.id, team: t })))), regatta?.finalMode && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Final" }, /* @__PURE__ */ import_react.default.createElement(FinalResultPanel, { regatta, teams, schedule, results })), completed > 0 && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Resultatmatris" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto", border: "1px solid var(--c-border)", borderRadius: 10 } }, /* @__PURE__ */ import_react.default.createElement("table", { className:"schedule-matrix", style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(620, 170 + scoredHeats.length * 74) } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { rowSpan: 2, style: { position: "sticky", left: 0, zIndex: 3, background: "var(--c-surface)", color: "var(--c-muted)", fontSize: 11, textAlign: "left", padding: "8px 10px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "Team"), flightsForMatrix.map(({ flight, flightNum }) => /* @__PURE__ */ import_react.default.createElement("th", { key: flightNum, colSpan: flight.length, style: { background: "var(--c-surface2)", color: "var(--c-accent)", fontSize: 11, fontWeight: 800, textAlign: "center", padding: "7px 8px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "Flight ", flightNum + 1)), /* @__PURE__ */ import_react.default.createElement("th", { rowSpan: 2, style: { background: "var(--c-surface)", color: "var(--c-text)", fontSize: 11, textAlign: "right", padding: "8px 10px", borderBottom: "1px solid var(--c-border)" } }, "Totalt")), /* @__PURE__ */ import_react.default.createElement("tr", null, flightsForMatrix.flatMap(({ flight, startIdx, flightNum }) => flight.map((_, hi) => {
       const h = startIdx + hi;
       return /* @__PURE__ */ import_react.default.createElement("th", { key: `${flightNum}-${hi}`, style: { background: "var(--c-surface2)", color: "var(--c-muted)", fontSize: 10, fontWeight: 700, textAlign: "center", padding: "6px 8px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "H", h + 1);
     })))), /* @__PURE__ */ import_react.default.createElement("tbody", null, ranked.map((entry, i) => /* @__PURE__ */ import_react.default.createElement("tr", { key: entry.team.id }, /* @__PURE__ */ import_react.default.createElement("td", { style: { position: "sticky", left: 0, zIndex: 2, background: i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", padding: "8px 10px", minWidth: 150 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 800, color: "var(--c-text)" } }, i + 1, ". ", entry.team.name), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: entry.team })), scoredHeats.map((heat) => {
       const race = raceByTeamHeat[entry.team.id]?.[heat.globalIdx];
       const isPenalty = race?.code && race.code !== "fin";
-      return /* @__PURE__ */ import_react.default.createElement("td", { key: heat.globalIdx, style: { background: i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", padding: "7px 8px", textAlign: "center", minWidth: 68 } }, race ? /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, fontWeight: 800, color: isPenalty ? race.codeObj?.color || "#f87171" : "var(--c-text)" } }, isPenalty ? race.code : `#${race.place}`), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10, color: "var(--c-muted)" } }, race.pts % 1 === 0 ? race.pts : race.pts.toFixed(1), "p")) : /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "var(--c-muted)", fontSize: 12 } }, "\u2014"));
+      return /* @__PURE__ */ import_react.default.createElement("td", { key: heat.globalIdx, style: { background: i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", padding: "7px 8px", textAlign: "center", minWidth: 68 } }, race ? /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 } }, /* @__PURE__ */ import_react.default.createElement("span", { className:"result-place", style: { fontSize: 22, fontWeight: 900, color: isPenalty ? race.codeObj?.color || "#f87171" : "var(--c-text)" } }, isPenalty ? race.code : `${race.place}`), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 10, color: "var(--c-muted)" } }, race.pts % 1 === 0 ? race.pts : race.pts.toFixed(1), "p")) : /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "var(--c-muted)", fontSize: 12 } }, "\u2014"));
     }), /* @__PURE__ */ import_react.default.createElement("td", { style: { background: i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", padding: "8px 10px", textAlign: "right", fontSize: 13, fontWeight: 900, color: "var(--c-accent)", whiteSpace: "nowrap" } }, entry.points % 1 === 0 ? entry.points : entry.points.toFixed(1), "p"))))))), completed > 0 && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Resultatredigering \u2014 po\xE4ngkoder" }, /* @__PURE__ */ import_react.default.createElement("p", { style: { fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, "Klicka p\xE5 ett resultat f\xF6r att s\xE4tta en po\xE4ngkod. Po\xE4ngen r\xE4knas om omedelbart.", /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#dc2626", marginLeft: 4 } }, "*"), " = kan ej diskarderas (DNE)."), scoredHeats.filter((h) => results[`g${h.globalIdx}`]).map((heat) => {
       const res = results[`g${heat.globalIdx}`];
       const scoringHeat = res.heat || heat;
@@ -15507,9 +15231,9 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
             },
             onClick: () => setEditing(isEditing ? null : { teamId: slot.team.id, heatGlobalIdx: heat.globalIdx })
           },
-          /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat: slot.boat, size: "sm" }),
+          
           /* @__PURE__ */ import_react.default.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, slot.team.name), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: slot.team })),
-          /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 12, color: "var(--c-muted)" } }, finishPlace ? `#${finishPlace}` : "ej i m\xE5l"),
+          /* @__PURE__ */ import_react.default.createElement("span", { className:"result-place", style: { fontSize: 22, fontWeight: 900, color: "var(--c-text)" } }, finishPlace ? `${finishPlace}` : "ej i m\xE5l"),
           /* @__PURE__ */ import_react.default.createElement("span", { style: {
             fontSize: 11,
             fontWeight: 700,
@@ -16292,9 +16016,9 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       color: tab === i ? "var(--c-accent)" : "var(--c-muted)",
       borderBottom: tab === i ? "2px solid var(--c-accent)" : "2px solid transparent",
       transition: "color 0.15s"
-    } }, t.icon, " ", t.label))), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: "20px 16px" } }, tab === 0 && /* @__PURE__ */ import_react.default.createElement(SetupView, { regatta, setRegatta, boatColors, setBoatColors, teams, setTeams, syncSettings, setSyncSettings, syncState, onRetrySync: () => attemptRemoteSync(), onNext: () => setTab(1) }), tab === 1 && /* @__PURE__ */ import_react.default.createElement(ScheduleView, { regatta, boatColors, teams, schedule, setSchedule, results, liveState, onNext: () => setTab(2) }), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: tab === 2 ? "block" : "none" } }, (() => {
+    } }, t.icon, " ", t.label))), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: "20px 16px" } }, tab === 0 && /* @__PURE__ */ import_react.default.createElement(SetupView, { regatta, setRegatta, boatColors, setBoatColors, teams, setTeams, syncSettings, setSyncSettings, syncState, onRetrySync: () => attemptRemoteSync(), onNext: () => setTab(1) }), tab === 1 && /* @__PURE__ */ import_react.default.createElement(ScheduleView, { regatta, boatColors, teams, schedule, setSchedule, results, liveState, onNext: () => setTab(2) }), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: tab === 2 ? "block" : "none" } }, tab === 2 && import_react.default.createElement(LiveSailNumberEditor, {boats:boatColors,activeBoats,onRename:(id,number)=>setBoatColors(prev=>prev.map(boat=>boat.id===id?numberedBoat(boat,number):boat))}), (() => {
       try {
-        return /* @__PURE__ */ import_react.default.createElement(StartView, { regatta, teams, schedule: sched, results, setResults, initialLiveState: liveState, onLiveUpdate: (live) => {
+        return /* @__PURE__ */ import_react.default.createElement(StartView, { regatta, teams, boatColors, schedule: sched, results, setResults, initialLiveState: liveState, onLiveUpdate: (live) => {
           setLiveState(live);
           if (publishing) publish(live);
         }, onResultSaved: (nextResults, live) => {
