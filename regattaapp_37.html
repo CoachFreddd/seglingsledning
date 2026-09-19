@@ -13465,19 +13465,6 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       h('details',{style:{marginTop:12}},h('summary',{style:summaryStyle},'Båtfördelning, byten och vila per besättning'),h('div',{style:{overflowX:'auto',marginTop:8}},boatTable)),
       h('details',{style:{marginTop:12}},h('summary',{style:summaryStyle},'Motståndarmatris'),h('div',{style:{overflowX:'auto',marginTop:8}},opponentTable)));
   }
-  function canStayAboard(heats,index,boatId) {
-    if(index<1)return false;
-    const current=heats[index]?.heatTeams.find(s=>s.boat.id===boatId);
-    const previous=heats[index-1]?.heatTeams.find(s=>s.boat.id===boatId);
-    return !!current && current.team.id===previous?.team.id;
-  }
-  function BoatScheduleTable({schedule,boats}) {
-    const h=import_react.default.createElement;let index=0;
-    const cell={padding:'8px',border:'1px solid var(--c-border)',textAlign:'left',fontSize:12};
-    return h(Sect,{title:'Heat och båtar – som i mallarna'},h('div',{className:'schedule-scroll',tabIndex:0,'aria-label':'Seglingsschema med heat och båtar',style:{overflowX:'auto'}},h('table',{className:'boat-schedule',style:{borderCollapse:'collapse',width:'100%',minWidth:550}},
-      h('thead',null,h('tr',null,h('th',{style:cell},'Omgång'),h('th',{style:cell},'Heat'),boats.map(b=>h('th',{key:b.id,style:cell},h(BoatChip,{boat:b,size:'sm'}))))),
-      h('tbody',null,schedule.flatMap((f,fi)=>f.map(heat=>h('tr',{key:index},h('td',{style:cell},fi+1),h('td',{style:cell},++index),boats.map(b=>h('td',{key:b.id,style:cell},heat.heatTeams.find(s=>s.boat.id===b.id)?.team.name||'–', canStayAboard(schedule.flat(),index-1,b.id)&&h('div',{style:{fontSize:12,fontWeight:800,marginTop:4,color:'var(--c-accent)'}},'Sitt kvar'))))))))));
-  }
   function buildHeatMatrix(schedule, teams) {
     const allHeats = schedule.flatMap(
       (flight, fi) => flight.map((heat, hi) => ({
@@ -13509,9 +13496,6 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     // Wide columns take precedence over fitting every heat onto one sheet.
     const maxLabelLength = Math.max(0,...boatColors.map(b=>String(b.label||'').length));
     const columnsPerPage = maxLabelLength > 24 ? 3 : 4;
-    const boatGroups=[];
-    for(let i=0;i<boatColors.length;i+=columnsPerPage)boatGroups.push(boatColors.slice(i,i+columnsPerPage));
-    const boatTable = boatGroups.map((boats,i)=>`<section class="boat-chunk"><h2>Heat och båtar${boatGroups.length>1?` · del ${i+1} av ${boatGroups.length}`:''}</h2><table class="boat-table"><colgroup><col style="width:75px"><col style="width:65px">${boats.map(()=>"<col>").join("")}</colgroup><thead><tr><th>Omgång</th><th>Heat</th>${boats.map(b=>`<th>${badge(b)}</th>`).join("")}</tr></thead><tbody>${allHeats.map(h=>`<tr><td>${h.flightNum+1}</td><td>${h.globalIdx+1}</td>${boats.map(b=>`<td>${escapeHtml(h.heatTeams.find(s=>s.boat.id===b.id)?.team.name||"–")}${canStayAboard(allHeats,h.globalIdx,b.id)?"<br><strong>Sitt kvar</strong>":""}</td>`).join("")}</tr>`).join("")}</tbody></table></section>`).join('');
     const chunks=[];let group=[];
     (schedule||[]).forEach((flight,fi)=>{
       const heats=allHeats.filter(h=>h.flightNum===fi);
@@ -13551,8 +13535,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       .heat h3 { margin:0 0 6px; font-size:11px; color:#1d4ed8; }
       .actions { margin:14px 0; }
       button { border:0; background:#1d4ed8; color:#fff; border-radius:7px; padding:9px 14px; font-weight:800; cursor:pointer; }
-      @media print { body { padding:0; } .actions { display:none !important; } .boat-chunk + .boat-chunk,.matrix-chunk { break-before:page; margin-top:0; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
-    </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="if(window.opener &amp;&amp; !window.opener.closed) window.opener.focus(); window.close();">← Tillbaka</button><button onclick="window.print()">Skriv ut</button></div>${boatTable}${crewTables}</body></html>`;
+      @media print { body { padding:0; } .actions { display:none !important; } .matrix-chunk { margin-top:0; break-before:auto; } .matrix-chunk + .matrix-chunk { break-before:page; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
+    </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="if(window.opener &amp;&amp; !window.opener.closed) window.opener.focus(); window.close();">← Tillbaka</button><button onclick="window.print()">Skriv ut</button></div>${crewTables}</body></html>`;
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
       window.alert("Webbläsaren blockerade utskriftsfönstret. Tillåt popups för appen och prova igen.");
@@ -13822,7 +13806,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       fontWeight: 600,
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, editMode ? "\u2713 St\xE4ng redigering" : "\u270E Redigera b\xE5ttilldelning")), editMode && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, background: "rgba(146,64,14,0.1)", border: "1px solid rgba(146,64,14,0.4)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#FCD34D" } }, "Klicka p\xE5 ett team i ett heat \u2192 klicka sedan ett annat team i samma heat \u2192 deras b\xE5tar byter plats.", swapA ? /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 700 } }, " Vald: heat ", swapA.heatGlobalIdx + 1, ". Klicka nu p\xE5 ett annat team i samma heat.") : "")), generated && import_react.default.createElement(ScheduleQuality, {schedule,teams,boats:activeBoats}), generated && import_react.default.createElement(BoatScheduleTable, {schedule,boats:activeBoats}), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Kappseglingsschema" }, import_react.default.createElement("p", {style:{fontSize:13,color:"var(--c-muted)",marginBottom:10}}, "Dra schemat i sidled för fler heat. Varje färg och segelnummer ligger i en egen kolumn. Besättningens namn följer med när du bläddrar."), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { className:"schedule-matrix crew-schedule", style: { "--heat-count":totalHeats, borderCollapse: "separate", width: "100%", fontSize: 14 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { style: { textAlign: "left", padding: "6px 10px", color: "var(--c-muted)", fontWeight: 600, borderBottom: "2px solid var(--c-border)", minWidth: 120 } }, "Team"), flightGroups.map(
+    } }, editMode ? "\u2713 St\xE4ng redigering" : "\u270E Redigera b\xE5ttilldelning")), editMode && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, background: "rgba(146,64,14,0.1)", border: "1px solid rgba(146,64,14,0.4)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#FCD34D" } }, "Klicka p\xE5 ett team i ett heat \u2192 klicka sedan ett annat team i samma heat \u2192 deras b\xE5tar byter plats.", swapA ? /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 700 } }, " Vald: heat ", swapA.heatGlobalIdx + 1, ". Klicka nu p\xE5 ett annat team i samma heat.") : "")), generated && import_react.default.createElement(ScheduleQuality, {schedule,teams,boats:activeBoats}), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Kappseglingsschema" }, import_react.default.createElement("p", {style:{fontSize:13,color:"var(--c-muted)",marginBottom:10}}, "Dra schemat i sidled för fler heat. Varje kolumn är ett heat. Färg och segelnummer visar vilken båt du ska segla. Besättningens namn följer med när du bläddrar."), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { className:"schedule-matrix crew-schedule", style: { "--heat-count":totalHeats, borderCollapse: "separate", width: "100%", fontSize: 14 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { style: { textAlign: "left", padding: "6px 10px", color: "var(--c-muted)", fontWeight: 600, borderBottom: "2px solid var(--c-border)", minWidth: 120 } }, "Team"), flightGroups.map(
       (fg) => fg.heats.map((h, hi) => /* @__PURE__ */ import_react.default.createElement("th", { key: h.globalIdx, style: {
         padding: "4px 6px",
         textAlign: "center",

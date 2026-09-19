@@ -1,114 +1,33 @@
-VERSION 9 – TYDLIGA PLACERINGAR I RESULTAT
+VERSION 10 – NAMN TILL VÄNSTER, HEAT ÖVERST
 
 Ersätt HTML-filerna i ditt GitHub-projekt och öppna ledning.html som vanligt.
-Behåll projektets övriga filer. Din regatta och dina anmälningar sparas på
-samma sätt som tidigare. Exportera gärna en backup före uppdateringen.
+Behåll projektets övriga filer. Regattor och anmälningar sparas som tidigare.
 
-RESULTAT
-Ställningen och resultatmatrisen visar tydliga platssiffror utan #.
-Båtmärken visas inte vid genomförda resultat eller i resultatutskriften.
-På publiksidan visas fortfarande färg och segelnummer för kommande heat,
-men placering när resultatet är registrerat. Poäng och koder som DNF
-behålls. Schemat och sparad båthistorik ändras inte.
+SCHEMATS PRESENTATION
+Schemat i appen och utskriften har en besättning per rad, med namn till
+vänster och heat överst. Rutorna visar båtens färg och segelnummer.
+Den omvända tabellen med båtar som kolumner och heat som rader är borttagen.
+Markeringen ”Sitt kvar” är borttagen. Samma båt i nästa heat framgår av rutan.
+Schemaläggningen och befintliga båttilldelningar är oförändrade.
+Ingen omlottning behövs för den här ändringen.
 
-FÖRENKLAD STARTVY
-Stor nedräkning som anpassar sig till dator och mobil. Flaggförklaringar,
-flaggsteg och modulen Skärpt startregel har tagits bort från startpanelen.
-Startval och ljud ligger direkt under klockan. Efter start visas seglingstid.
-Målregistrering finns kvar. Tjuvstart och videoinspelning ligger i hopfällbara
-avsnitt. Avbryt sekvensen återgår till startvalen om en ny start behövs.
-Nya starter har ingen dold skärpt startregel. Sparade resultat behålls.
+I appen kan du bläddra i sidled medan namnkolumnen följer med.
+Utskriften delas upp i breda avsnitt med högst fyra heatkolumner, eller tre
+vid extra långa beteckningar. Långa nummer radbryts i sin egen cell.
+Varje utskriftsavsnitt upprepar besättningsnamn och heatrubriker.
+Använd liggande A4. Aktivera bakgrundsgrafik om färgerna inte visas.
+Tillbaka-knappen återgår till appen och skrivs inte ut.
 
-STARTFÖRFARANDE
-Två startval: Starta (3 min) och Starta (20 sek).
-Vid 3-minutersstart ges ett kort tut direkt, sedan sägs tre–två–ett
-vid 2:03–2:01 och 1:03–1:01. Kort tut vid 2:00 respektive 1:00.
-Vid båda startvalen sägs tio till ett under de sista tio sekunderna,
-följt av ”Start” vid noll. Inget långt tut överröstar ordet Start.
-Ljudknappen styr både tal och tut. Svenskt tal använder webbläsarens röst.
-Omstart efter återkallelse eller uppskjutning använder tre minuter.
-Måltider och äldre sparad regattadata använder samma tidsbas som tidigare.
+BEVARADE FUNKTIONER
+Motståndarvariation prioriteras före färre båtbyten vid direkt följande heat.
+Segelnummer kan redigeras under Start & Mål → Byt segelnummer.
+Startvyn har stor klocka, tre minuter eller tjugo sekunder och talad nedräkning.
+Resultat visar placering utan # eller båtuppgift. Publiksidan visar fortfarande
+färg och segelnummer för kommande heat, och placering när resultat finns.
+Livesidan öppnas via Publicera live → Öppna livesidan.
 
-UTSKRIFT OCH BÅTFÄRGER
-Utskriften visar högst fyra heatkolumner per avsnitt, eller tre vid
-extra långa båtbeteckningar. Varje kolumn har omgång och heatnummer.
-Långa nummer radbryts inom cellen, vars höjd växer med innehållet.
-Även översikten Heat och båtar delas upp i bredare avsnitt.
-Segelnummer har nu alltid båtens valda färg som bakgrund, även med
-visningsvalet ”Segelnummer på båtfärg”. Färgen ändras i Setup.
-Appens besättningsschema har också bredare celler. Ingen omlottning behövs.
-Utskriften använder liggande A4 och kan omfatta fler sidor än tidigare.
-Om utskriftsdialogen tar bort färger: aktivera bakgrundsgrafik och färgutskrift.
-
-BYT SEGELNUMMER
-Öppna Start & Mål och klicka på ”Byt segelnummer”.
-Ändra numret för den båt som får ett nytt segel. Lämna fältet eller
-tryck Enter för att spara. Tomma och redan använda nummer godtas inte.
-Det fungerar även under nedräkning och pågående heat. Startklockan
-fortsätter; båttilldelning, placeringar och måltider behålls.
-Det nya numret visas även i tidigare resultat, scheman och utskrifter.
-Ingen regenerering eller omlottning behövs för att byta segelnummer.
-Färgvalet behålls. Om bara färg är valt visas numret först när du väljer
-segelnummer eller båda under Setup. Numret kan också ändras där.
-
-FÖR DITT BEFINTLIGA SCHEMA
-Öppna Schema och välj ”Optimera båtar utan omlottning”.
-Det ändrar bara båttilldelningen – inte besättningar, motståndare,
-heatordning eller vila. Heat fram till det senast sparade resultatet
-samt finalheat behåller sina tilldelningar.
-Optimering kan inte köras under ett pågående heat/en pågående start.
-
-FÖR ETT NYTT SCHEMA
-Välj ”Färre båtbyten” och generera schemat.
-1. Grundschemat bestämmer motståndarmötena.
-2. Optimeringen försöker minska båtbyten för besättningar som ska segla
-   direkt igen i nästa heat. Motståndarmötena får inte ändras.
-Båtbyten efter ett eller flera vilande heat räknas inte som något negativt.
-Varje besättnings antal seglingar i respektive båt bevaras också.
-
-KONTROLLERA RESULTATET
-Schemakontrollen visar byten mellan direkt följande heat, hur många
-gånger en besättning kan sitta kvar och antalet byten före optimeringen.
-”Sitt kvar” visas i heat–båt-tabellen och utskriften när samma besättning
-har samma båt i det direkt föregående heatet.
-Om besättningen har vilat markeras inte ”Sitt kvar”, även om båten är densamma.
-
-Ett äldre schema ändras inte automatiskt efter filuppdateringen.
-Välj ”Optimera båtar utan omlottning” för att använda det nya målet.
-Metoden söker förbättringar men garanterar inte att alla direktbyten kan tas bort.
-När det redan är noll direktbyten behövs ingen ändring av båttilldelningen.
-
-VISNING OCH UTSKRIFT
-Färg, segelnummer eller båda kan fortfarande väljas i Setup.
-De större schemacellerna, sidledsbläddringen och den läsbara utskriften
-från föregående version finns kvar. Klicka Skriv ut schema för liggande A4.
-Tillbaka-knappen skrivs inte ut.
-
-TESTAT
-Version 9: stora platssiffror utan #, resultat utan båtuppgifter,
-resultatutskrift, DNF-koder och framtida båttilldelning på publiksidan.
-
-Version 8: stor klocka på dator/mobil, borttagna flaggförklaringar,
-båda startförloppen, tal/tut, tyst läge och målregistrering.
-
-Version 7: automatiskt webbläsartest av båda startvalen, talets ordning
-och sekundmarkeringar, korta minutljud, tyst läge och målgångstider.
-Ljudanrop verifierades; högtalaråtergivning på din enhet har inte testats.
-
-Version 6: 45 heat och extra långa segelnummer, cellgränser i app/mobil/
-utskriftsläge, färgad bakgrund i nummerläge, Tillbaka samt segelbyte
-under pågående heat. Den genererade utskriftslayouten har granskats visuellt.
-
-Version 5: segelbyte under nedräkning och pågående heat, även efter en
-målgång; fortsatt klocka vid flikbyte; nummerkontroll; bevarade tilldelningar,
-måltider och resultatkoder; sparning och återöppning. Befintliga tester
-för identifikation, utskrifter, export/import och publiksida passerade också.
-
-Från version 4 (schemalogiken är oförändrad):
-102 kombinationer av besättnings- och båtantal, de fyra uppladdade mallarna,
-längre scheman, låsta heat samt ett särskilt fall där byte efter vila
-tillåts för att besättningen ska kunna sitta kvar mellan två direkt följande heat.
-Motståndarmöten, heatordning och båtanvändningsantal jämförs före och efter.
-Dessutom webbläsartester av optimeringsknappen, identifikation, sparade resultat,
-schemavyn, mobilvy, utskrift och Tillbaka. Inga JavaScript-fel upptäcktes.
-Serversynk i din produktionsmiljö och fysisk utskrift har inte testats.
+TESTAT I VERSION 10
+45 heat, namnkolumn och heatrubriker, långa segelnummer, dator/mobil,
+utskriftsläge och Tillbaka. Inga båtmärken överlappar cellgränserna.
+Ingen Sitt kvar-markering eller omvänd båt–heat-tabell visas.
+Fysisk utskrift och produktionsservern har inte testats.

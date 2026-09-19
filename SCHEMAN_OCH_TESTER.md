@@ -1,3 +1,11 @@
+# Schema med namn till vänster – version 10
+
+Appen och utskriften använder besättningar som rader och heat som kolumner. Den omvända båt–heat-tabellen och Sitt kvar-markeringarna är borttagna. Schemaläggning och sparade tilldelningar ändras inte. Utskriftens första tabell följer direkt efter sidhuvudet; senare avsnitt börjar på ny sida.
+
+Testat med 45 heat och extra långa segelnummer: inga överlapp, rätt tabellriktning, borttagna markeringar, mobilvisning och Tillbaka.
+
+Nedan finns historiska versionsanteckningar; ovanstående ersätter äldre beskrivningar av båt–heat-tabellen och Sitt kvar-markeringen.
+
 # Resultatvisning – version 9
 
 Tydliga placeringar utan # och utan båtmärken i ställning, resultatmatris, resultatredigering och resultatutskrift. Publikmatrisen visar båtuppgifter för kommande heat och endast placering eller resultatkod när resultat finns. Båtstatistik och lagrade tilldelningar behålls.
