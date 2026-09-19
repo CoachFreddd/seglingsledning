@@ -1,0 +1,56 @@
+SEGLINGSAPP – SEGELNUMMER OCH TILLBAKA FRÅN UTSKRIFT
+
+Installation
+Ersätt dessa fyra filer på samma plats i ditt befintliga GitHub-projekt:
+  ledning.html
+  regattaapp_37.html
+  admin.html
+  index.html
+
+Fortsätt öppna ledning.html som vanligt.
+Behåll projektets övriga filer, till exempel flags/, api/ och manifestfiler.
+Detta paket är en uppdatering av HTML-filerna, inte ett komplett nytt serverprojekt.
+
+Användning
+I Setup finns avsnittet ”Båtar och segelnummer”. Välj antal båtar och
+ersätt de föreslagna numren med båtarnas riktiga segelnummer.
+Du kan exempelvis skriva SWE 123 eller 007. Inledande nollor bevaras.
+Lämna fältet eller tryck Enter för att spara. Tomma och dubbla nummer
+accepteras inte; det tidigare giltiga numret ligger kvar tills du rättar fältet.
+
+Segelnumret används i scheman, start/mål, resultat, statistik, publik vy,
+utskrifter och säkerhetskopior. Vid sprintrotation följer numret båten.
+
+Äldre sparade regattor
+Befintliga båt-id:n, scheman, poäng, måltider och besättningar bevaras.
+Äldre färgbåtar får inledningsvis löpnummer. Under nummerfältet visas
+”Tidigare: Gul”, etc., så att du kan ange rätt segelnummer för varje båt.
+Ändrat segelnummer följer också med i redan sparade heat och resultat.
+Minskat och sedan ökat båtantal behåller de tidigare angivna numren.
+Du kan använda Exportera före uppdateringen för att spara en separat backup.
+
+Utskrift
+Både Skriv ut schema och PDF slutställning har knappen ”Tillbaka”.
+Den stänger utskriftsfönstret och återgår till den appvy du kom från.
+Knapparna visas inte på papper eller i PDF-utskriften.
+
+Övriga hänvisningar
+admin.html och index.html använder relativa länkar till huvudversionen,
+så att de även fungerar när appen ligger i en undermapp.
+Länken till livesidan från ledning.html går nu till den publika huvudversionen.
+
+Kontrollerat
+Automatiska webbläsartester i Chrome omfattar:
+- Äldre färgdata, ändrade segelnummer, dubbletter, tomma fält och omladdning.
+- Bevarade båt-id:n, resultat, straffkoder och måltider.
+- Ny kappsegling med egna segelnummer och genererat rotationsschema.
+- Nedräkning, målregistrering och automatisk resultatsparning.
+- Startvy, resultat, statistik och publik vy med segelnummer.
+- Export/import och ändring av antal båtar.
+- Båda utskriftsvyerna, Tillbaka och dolda utskriftsknappar.
+- Hänvisningarna från admin.html och index.html.
+- Visuell kontroll av mobilvy och schemavy.
+Inga JavaScript-fel uppstod i testerna.
+
+Tester kördes lokalt med externa nätanrop blockerade.
+Uppladdning/synk mot din riktiga server och fysisk utskrift har inte testats.
