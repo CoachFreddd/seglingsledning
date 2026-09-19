@@ -9,6 +9,33 @@
   <link rel='manifest' href='regatta-manifest.webmanifest'/>
   <title>Regattaapp</title>
   <style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system,'Inter',system-ui,sans-serif;}</style>
+
+<style id="readable-schedules">
+.schedule-scroll { max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; }
+.schedule-matrix { table-layout:auto !important; width:max-content !important; min-width:100%; border-spacing:0; }
+.schedule-matrix th,.schedule-matrix td { padding:10px 12px !important; vertical-align:middle; }
+.schedule-matrix td { min-width:150px; }
+.schedule-matrix td span { white-space:nowrap; font-size:13px !important; line-height:1.45 !important; }
+.schedule-matrix thead th { font-size:13px !important; }
+.crew-schedule tbody td:first-child,.crew-schedule thead th:first-child,.crew-schedule tfoot td:first-child { position:sticky; left:0; z-index:2; background:var(--c-surface); min-width:190px; max-width:260px; white-space:normal !important; overflow-wrap:anywhere; }
+.crew-schedule thead th:first-child { z-index:3; }
+.public-schedule th:nth-child(-n+3),.public-schedule td:nth-child(-n+3) { position:static !important; }
+.public-schedule td:nth-child(2) { position:sticky !important; left:0 !important; z-index:4; min-width:160px; max-width:240px; }
+.boat-schedule { table-layout:auto; width:max-content !important; min-width:100% !important; }
+.boat-schedule th,.boat-schedule td { min-width:160px; padding:12px !important; font-size:14px !important; white-space:normal; overflow-wrap:anywhere; }
+.boat-schedule th:nth-child(-n+2),.boat-schedule td:nth-child(-n+2) { min-width:70px; }
+.boat-schedule th span { white-space:nowrap; font-size:13px !important; }
+
+.crew-schedule { table-layout:fixed !important; width:calc(var(--heat-count) * 180px + 280px) !important; }
+.crew-schedule th,.crew-schedule td { width:180px; min-width:0 !important; }
+.crew-schedule th:first-child,.crew-schedule td:first-child { width:190px !important; max-width:190px !important; }
+.crew-schedule th:last-child,.crew-schedule td:last-child { width:90px; }
+.crew-schedule td span { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
+@media(max-width:600px) {
+ .crew-schedule { width:calc(var(--heat-count) * 180px + 220px) !important; }
+ .crew-schedule th:first-child,.crew-schedule td:first-child { width:130px !important; max-width:130px !important; }
+}
+</style>
 </head><body>
   <div id='root'></div>
   <script>
@@ -12723,13 +12750,34 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
   // home/claude/app_entry.jsx
   var import_react = __toESM(require_react());
   var import_client = __toESM(require_client());
-  // Stable ids preserve rotation and historical results; number is the editable identity.
-  function numberedBoat(boat, number) {
-    if (boat.number === String(number) && boat.label === String(number) && boat.bg === "#e2e8f0" && boat.text === "#0f172a") return boat;
-    return { ...boat, ...(boat.number == null && boat.label ? { legacyLabel: boat.label } : {}), number: String(number), label: String(number), bg: "#e2e8f0", text: "#0f172a" };
+  const BOAT_PALETTE = [
+    {id:'gul',label:'Gul',bg:'#F5C518',text:'#1a1a1a'}, {id:'rod',label:'Röd',bg:'#E53E3E',text:'#fff'},
+    {id:'bla',label:'Blå',bg:'#3182CE',text:'#fff'}, {id:'gron',label:'Grön',bg:'#38A169',text:'#fff'},
+    {id:'orange',label:'Orange',bg:'#DD6B20',text:'#fff'}, {id:'lila',label:'Lila',bg:'#805AD5',text:'#fff'},
+    {id:'gra',label:'Grå',bg:'#6B7280',text:'#fff'}, {id:'vit',label:'Vit',bg:'#E8E8E8',text:'#1a1a1a'},
+    {id:'svart',label:'Svart',bg:'#1A202C',text:'#fff'}, {id:'rosa',label:'Rosa',bg:'#D53F8C',text:'#fff'},
+    {id:'turkos',label:'Turkos',bg:'#00B5D8',text:'#102030'}
+  ];
+  function numberedBoat(boat, number, mode=boat.identityMode || (boat.number==null?'color':'number')) {
+    const color=BOAT_PALETTE.find(c=>c.id===(boat.colorId||boat.id))||BOAT_PALETTE[0];
+    const label=mode==='color'?color.label:mode==='both'?`${color.label} · ${number}`:String(number);
+    const bg=mode==='number'?'#e2e8f0':color.bg, text=mode==='number'?'#0f172a':color.text;
+    if(boat.number===String(number)&&boat.label===label&&boat.bg===bg&&boat.text===text&&boat.identityMode===mode&&boat.colorId===color.id)return boat;
+    return {...boat,number:String(number),colorId:color.id,identityMode:mode,label,bg,text};
   }
-  var BOAT_COLORS = ["gul", "rod", "bla", "gron", "orange", "lila", "gra", "vit", "svart"]
-    .map((id, i) => numberedBoat({ id }, i + 1));
+  var BOAT_COLORS = BOAT_PALETTE.slice(0,9).map((c,i)=>numberedBoat({id:c.id,colorId:c.id},i+1,'both'));
+  function BoatIdentitySettings({regatta,setRegatta,boatColors,setBoatColors,numBoats}) {
+    const h=import_react.default.createElement;
+    const mode=regatta.boatIdentity||boatColors[0]?.identityMode||'both';
+    return h('div',null,
+      h('label',{style:{display:'block',fontSize:13,marginBottom:12}},'Identifiera båtar med',h('select',{className:'inp','aria-label':'Identifiera båtar med',value:mode,onChange:e=>setRegatta(r=>({...r,boatIdentity:e.target.value})),style:{marginTop:5}},
+        h('option',{value:'both'},'Färg och segelnummer'),h('option',{value:'color'},'Färg'),h('option',{value:'number'},'Segelnummer'))),
+      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:10}},boatColors.slice(0,numBoats).map((boat,index)=>h('div',{key:boat.id,style:{background:'var(--c-surface2)',padding:12,borderRadius:8}},
+        h(BoatChip,{boat}),
+        mode!=='number'&&h('label',{style:{display:'block',fontSize:12,marginTop:8}},`Båt ${index+1} – färg`,h('select',{className:'inp','aria-label':`Båtfärg ${index+1}`,value:boat.colorId,onChange:e=>{const colorId=e.target.value;setBoatColors(prev=>prev.map(b=>b.id===boat.id?numberedBoat({...b,colorId},b.number,mode):b));},style:{marginTop:4}},BOAT_PALETTE.map(c=>h('option',{key:c.id,value:c.id,disabled:boatColors.some(b=>b.id!==boat.id&&b.colorId===c.id)},c.label)))),
+        mode!=='color'&&h('div',{style:{marginTop:8}},h(BoatNumberInput,{boat,boats:boatColors,index,onSave:number=>setBoatColors(prev=>prev.map(b=>b.id===boat.id?numberedBoat(b,number,mode):b))}))
+      ))));
+  }
   function normalizeBoatData(payload) {
     if (!payload) return payload;
     const boats = new Map();
@@ -12744,6 +12792,12 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       Object.entries(value).forEach(([key, child]) => { if (key !== "boat" && key !== "boatColors") collect(child); });
     };
     collect(payload);
+    const required=Math.min(8,Math.max(0,Number(payload.regatta?.numBoats)||0));
+    while(boats.size<required){
+      const color=BOAT_PALETTE.find(c=>![...boats.values()].some(b=>(b.colorId||b.id)===c.id))||BOAT_PALETTE[boats.size];
+      let serial=1;while(boats.has(`boat-${serial}`))serial++;
+      const id=`boat-${serial}`;boats.set(id,{id,colorId:color.id,identityMode:payload.regatta?.boatIdentity||'both'});
+    }
     const used = new Set([...boats.values()].filter(b => b.number != null).map(b => String(b.number)));
     let next = 1;
     boats.forEach((boat, id) => {
@@ -12753,7 +12807,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         number = String(next++);
         used.add(number);
       }
-      boats.set(id, numberedBoat(boat, number));
+      const colorId=boat.colorId || (BOAT_PALETTE.some(c=>c.id===boat.id)?boat.id:BOAT_PALETTE[[...boats.keys()].indexOf(id)%BOAT_PALETTE.length].id);
+      boats.set(id, numberedBoat({...boat,colorId}, number, payload.regatta?.boatIdentity || boat.identityMode || (boat.number==null?'color':'number')));
     });
     const replace = (value) => {
       if (!value || typeof value !== "object") return value;
@@ -12765,7 +12820,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         [key, key === "boat" && child ? boats.get(child.id) || child : key === "boatColors" ? child.map(b => boats.get(b.id)) : replace(child)]);
       return entries.every(([key, child]) => child === value[key]) ? value : Object.fromEntries(entries);
     };
-    return { ...replace(payload), boatColors: [...boats.values()] };
+    return { ...replace(payload), ...(boats.size || Array.isArray(payload.boatColors) ? {boatColors:[...boats.values()]} : {}) };
   }
   function BoatNumberInput({ boat, boats, onSave, index }) {
     const [draft, setDraft] = (0, import_react.useState)(boat.number);
@@ -13126,7 +13181,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const setDayTime = (date, key, value) => {
       setRegatta((r) => ({ ...r, dayTimes: { ...(r.dayTimes || {}), [date]: { ...(r.dayTimes?.[date] || {}), [key]: value } } }));
     };
-    const setBoatNumber = (idx, number) => setBoatColors(prev => prev.map((boat, i) => i === idx ? numberedBoat(boat, number) : boat));
+    
     const handleNumBoats = (n) => {
       setRegatta(r => ({ ...r, numBoats: n }));
       setBoatColors(prev => {
@@ -13136,7 +13191,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
           while (next.some(b => b.number === String(number))) number++;
           let serial = 1;
           while (next.some(b => b.id === `boat-${serial}`)) serial++;
-          next.push(numberedBoat({ id: `boat-${serial}` }, number));
+          const color=BOAT_PALETTE.find(c=>!next.some(b=>b.colorId===c.id))||BOAT_PALETTE[0];
+          next.push(numberedBoat({ id: `boat-${serial}`, colorId:color.id }, number, regatta.boatIdentity || next[0]?.identityMode || "both"));
         }
         return next;
       });
@@ -13165,7 +13221,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     ))))), regattaDays.length > 0 && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Starttider per dag" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, regattaDays.map((date, i) => {
       const times = getDayTime(regatta, date);
       return /* @__PURE__ */ import_react.default.createElement("div", { key: date, style: { display: "grid", gridTemplateColumns: "1fr 120px 120px", gap: 8, alignItems: "end", background: "var(--c-surface2)", borderRadius: 8, padding: "10px 12px" } }, /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", marginBottom: 3 } }, "Dag ", i + 1), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 14, color: "var(--c-text)", fontWeight: 800 } }, date)), /* @__PURE__ */ import_react.default.createElement("label", { style: { fontSize: 11, color: "var(--c-muted)", display: "block" } }, "F\xF6rsta start", /* @__PURE__ */ import_react.default.createElement("input", { className: "inp", type: "time", value: times.firstStart, onInput: (e) => setDayTime(date, "firstStart", e.target.value), onChange: (e) => setDayTime(date, "firstStart", e.target.value), style: { marginTop: 4 } })), /* @__PURE__ */ import_react.default.createElement("label", { style: { fontSize: 11, color: "var(--c-muted)", display: "block" } }, "Sista start", /* @__PURE__ */ import_react.default.createElement("input", { className: "inp", type: "time", value: times.lastStart, onInput: (e) => setDayTime(date, "lastStart", e.target.value), onChange: (e) => setDayTime(date, "lastStart", e.target.value), style: { marginTop: 4 } })));
-    }))), /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Båtar och segelnummer" }, import_react.default.createElement("p", { style: { fontSize: 13, color: "var(--c-muted)", lineHeight: 1.5 } }, "Välj antal båtar och skriv varje båts segelnummer, till exempel SWE 123 eller 007. Numret sparas när du lämnar fältet eller trycker Enter."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 } }, [3, 4, 5, 6, 7, 8].map((n) => /* @__PURE__ */ import_react.default.createElement("button", { key: n, onClick: () => handleNumBoats(n), style: {
+    }))), /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Båtar och identifikation" }, import_react.default.createElement("p", { style: { fontSize: 13, color: "var(--c-muted)", lineHeight: 1.5 } }, "Välj färg, segelnummer eller båda. Segelnummer sparas när du lämnar fältet eller trycker Enter. Valet följer med i scheman, resultat och utskrifter."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 } }, [3, 4, 5, 6, 7, 8].map((n) => /* @__PURE__ */ import_react.default.createElement("button", { key: n, onClick: () => handleNumBoats(n), style: {
       background: numBoats === n ? "var(--c-accent)" : "var(--c-surface2)",
       color: numBoats === n ? "#fff" : "var(--c-text)",
       border: "none",
@@ -13175,10 +13231,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       fontWeight: 700,
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, n))), boatRec && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.35)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 12, color: "#FCD34D", lineHeight: 1.5, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", null, "Med ", teams.length, " team blir ", boatRec.boats, " b\xE5tar j\xE4mnare: ", boatRec.heats, " heat per flight med ", boatRec.sizes.join("+"), " b\xE5tar."), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => handleNumBoats(boatRec.boats), style: { background: "#FBBF24", color: "#1a1a1a", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" } }, "Anv\xE4nd ", boatRec.boats, " b\xE5tar")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, boatColors.slice(0, numBoats).map((boat, idx) => /* @__PURE__ */ import_react.default.createElement("div", { key: idx, style: { display: "flex", alignItems: "center", gap: 8, background: "var(--c-surface2)", borderRadius: 8, padding: "6px 10px" } }, /* @__PURE__ */ import_react.default.createElement(BoatChip, { boat, size: "sm" }), /* @__PURE__ */ import_react.default.createElement(
-      BoatNumberInput,
-      { boat, boats: boatColors, index: idx, onSave: number => setBoatNumber(idx, number) }
-    ))))), /* @__PURE__ */ import_react.default.createElement(Sect, { title: `Team (${teams.length}/18)` }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement(
+    } }, n))), boatRec && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.35)", borderRadius: 8, padding: "9px 12px", marginBottom: 12, fontSize: 12, color: "#FCD34D", lineHeight: 1.5, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("span", null, "Med ", teams.length, " team blir ", boatRec.boats, " b\xE5tar j\xE4mnare: ", boatRec.heats, " heat per flight med ", boatRec.sizes.join("+"), " b\xE5tar."), /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => handleNumBoats(boatRec.boats), style: { background: "#FBBF24", color: "#1a1a1a", border: "none", borderRadius: 7, padding: "6px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" } }, "Anv\xE4nd ", boatRec.boats, " b\xE5tar")), import_react.default.createElement(BoatIdentitySettings, { regatta, setRegatta, boatColors, setBoatColors, numBoats })), /* @__PURE__ */ import_react.default.createElement(Sect, { title: `Team (${teams.length}/18)` }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ import_react.default.createElement(
       "input",
       {
         className: "inp",
@@ -13244,266 +13297,169 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     }
     return drawn;
   }
-  function pickBalancedBoat(team, boats, usedBoats, flightIdx, heatIdx, pos, prevBoatByTeam, boatUseCounts, options) {
-    const counts = boatUseCounts[team.id] || {};
-    const preferredIdx = (flightIdx + heatIdx + pos) % boats.length;
-    const preferred = boats[preferredIdx];
-    let best = null;
-    boats.forEach((boat, idx) => {
-      if (usedBoats.has(boat.id)) return;
-      const previous = prevBoatByTeam[team.id];
-      const usedCount = counts[boat.id] || 0;
-      let score = usedCount * 100;
-      if (previous?.id === boat.id) score += options.mode === "boatChanges" ? 20 : 80;
-      score += Math.abs(idx - preferredIdx) * 2;
-      if (options.mode === "boatChanges" && previous?.id === boat.id && usedCount === Math.min(...boats.map((b) => counts[b.id] || 0))) score -= 35;
-      if (!best || score < best.score) best = { boat, score };
-    });
-    return best?.boat || boats.find((boat) => !usedBoats.has(boat.id)) || boats[0];
+  // Template positions are taken from the user's Flight and boat assignment sheets.
+  // Entirely empty placeholder races are excluded; an empty boat position is retained.
+  const SPRINT_TEMPLATES = {"16-6":[[[13,1,6,12,11,9],[16,null,10,14,15,2],[8,3,5,7,4,null]],[[8,1,13,7,null,12],[null,16,11,2,6,5],[9,15,14,4,10,3]],[[8,15,null,6,10,2],[1,null,4,13,3,11],[14,16,7,12,9,5]],[[14,8,10,1,11,5],[7,13,2,15,null,9],[4,12,6,3,16,null]],[[1,9,6,11,7,null],[2,4,null,8,14,12],[5,3,15,16,13,10]],[[2,3,8,16,9,1],[4,null,14,13,5,11],[12,7,null,15,6,10]],[[11,7,16,null,6,10],[3,9,null,14,13,8],[12,2,15,4,5,1]],[[7,2,10,4,16,1],[null,12,13,6,14,3],[null,5,15,11,9,8]],[[7,10,4,11,12,8],[null,15,3,5,2,16],[6,null,9,13,1,14]],[[6,null,9,5,1,10],[7,14,8,12,13,16],[11,4,3,null,2,15]],[[11,6,3,1,12,15],[16,5,9,null,8,13],[10,14,null,2,7,4]],[[9,14,6,2,8,4],[10,1,16,3,null,13],[5,11,12,null,15,7]],[[5,14,12,1,null,10],[15,13,11,8,2,6],[3,4,7,9,null,16]],[[1,8,7,15,null,14],[12,11,null,9,2,16],[13,6,5,10,3,4]],[[13,14,5,7,3,2],[15,null,1,9,4,11],[null,12,8,10,16,6]]],"11-6":[[[4,8,9,1,null,11],[5,6,7,10,2,3]],[[5,6,7,10,11,null],[1,9,2,3,8,4]],[[null,9,2,3,11,7],[1,5,10,4,6,8]],[[1,7,11,null,6,8],[2,5,10,9,3,4]],[[8,5,null,9,7,4],[6,3,2,11,1,10]],[[6,3,9,7,8,10],[5,11,1,null,2,4]],[[10,11,1,null,3,9],[8,2,4,7,5,6]],[[8,2,null,9,5,6],[1,7,3,4,10,11]],[[9,7,3,8,5,11],[null,10,4,2,1,6]],[[null,10,8,5,1,3],[4,2,11,6,9,7]],[[5,1,11,6,9,10],[3,8,null,4,7,2]],[[3,6,null,4,11,5],[7,2,9,8,10,1]],[[7,4,11,8,10,5],[9,null,6,3,2,1]],[[9,null,6,4,10,7],[11,8,5,1,2,3]],[[10,7,5,null,2,3],[11,9,8,6,4,1]]],"10-4":[[[5,10,6,null],[null,8,1,7],[3,2,4,9]],[[3,2,7,8],[null,1,4,10],[6,5,9,null]],[[1,5,9,7],[3,2,null,10],[8,4,6,null]],[[3,9,1,null],[5,10,null,8],[4,7,6,2]],[[4,8,6,3],[9,2,null,1],[null,7,10,5]],[[6,7,null,5],[2,4,8,null],[10,1,3,9]],[[5,1,3,9],[null,6,10,8],[2,null,4,7]],[[1,null,2,6],[7,null,3,10],[9,8,5,4]],[[9,null,10,4],[null,3,5,1],[6,8,7,2]],[[6,10,9,2],[4,1,null,7],[8,null,5,3]],[[4,null,2,3],[1,10,7,5],[9,null,8,6]],[[10,1,8,6],[7,null,9,3],[null,4,2,5]],[[3,null,2,8],[5,6,1,4],[10,9,7,null]],[[10,5,7,2],[4,null,8,9],[null,3,6,1]],[[null,9,2,1],[null,7,6,5],[4,3,10,8]]],"12-6":[[[4,8,9,1,12,11],[5,6,7,10,2,3]],[[5,6,7,10,11,12],[1,9,2,3,8,4]],[[12,9,2,3,11,7],[1,5,10,4,6,8]],[[1,7,11,12,6,8],[2,5,10,9,3,4]],[[1,5,12,9,7,4],[6,3,2,11,8,10]],[[6,3,9,7,8,10],[5,11,1,12,2,4]],[[10,11,1,12,3,9],[8,2,4,7,5,6]],[[8,2,12,9,5,6],[1,7,3,4,10,11]],[[9,7,3,8,5,11],[12,10,4,2,1,6]],[[12,10,8,5,1,3],[4,2,11,6,9,7]],[[5,1,11,6,9,10],[3,8,12,4,7,2]],[[3,6,12,4,11,5],[7,2,9,8,10,1]],[[7,4,11,8,10,5],[9,12,6,3,2,1]],[[9,12,6,4,10,7],[11,8,5,1,2,3]],[[10,7,5,12,2,3],[11,9,8,6,4,1]]]};
+  function scheduleRandom(seed) {
+    let state = seed >>> 0;
+    return () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
   }
-  function balanceFlightBoats(flight, boats, flightIdx, prevBoatByTeam, boatUseCounts, options) {
-    return flight.map((heat, heatIdx) => {
-      const usedBoats = /* @__PURE__ */ new Set();
-      return {
-        ...heat,
-        heatTeams: heat.heatTeams.map((slot, pos) => {
-          const boat = pickBalancedBoat(slot.team, boats, usedBoats, flightIdx, heatIdx, pos, prevBoatByTeam, boatUseCounts, options);
-          usedBoats.add(boat.id);
-          return { ...slot, boat };
-        })
-      };
-    });
-  }
-  function makeFlightFromOrder(order, teams, boats, flightIdx, prevBoatByTeam, pairCounts, options) {
-    const b = boats.length;
-    const heatSizes = getBalancedHeatSizes(order.length, b);
-    const spreadOpponents = options.opponentVariation || options.mode === "allsvenskan" || options.mode === "boatChanges";
-    if (spreadOpponents) {
-      const orderedTeams = order.map((teamIdx) => teams[teamIdx]).filter(Boolean);
-      const pairLoad = (team) => {
-        let total = 0;
-        orderedTeams.forEach((other) => {
-          if (other.id !== team.id) total += pairCounts[pairKey(team.id, other.id)] || 0;
-        });
-        return total;
-      };
-      const scoreAddToHeat = (team, heat) => {
-        let score = heat.length * 2;
-        heat.forEach((other) => {
-          const count = pairCounts[pairKey(team.id, other.id)] || 0;
-          score += count === 0 ? -180 : count * 1600 + count * count * 350;
-        });
-        return score;
-      };
-      const scoreHeats = (heats) => {
-        let score = 0;
-        heats.forEach((heat) => {
-          for (let i = 0; i < heat.length; i++) {
-            for (let j = i + 1; j < heat.length; j++) {
-              const count = pairCounts[pairKey(heat[i].id, heat[j].id)] || 0;
-              score += count === 0 ? -180 : count * 1600 + count * count * 350;
-            }
-          }
-        });
-        return score;
-      };
-      let bestHeats = null;
-      let bestScore = Infinity;
-      const attempts = Math.max(80, orderedTeams.length * 18);
-      for (let attempt = 0; attempt < attempts; attempt++) {
-        const source = attempt === 0 ? orderedTeams.slice() : shuffleTeamsForDraw(rotateArray(orderedTeams, flightIdx + attempt));
-        const orderRank = new Map(source.map((team, idx) => [team.id, idx]));
-        const remaining = source.slice().sort((a, b2) => pairLoad(b2) - pairLoad(a) || (orderRank.get(a.id) ?? 0) - (orderRank.get(b2.id) ?? 0));
-        const heats = heatSizes.map(() => []);
-        remaining.forEach((team) => {
-          let bestHeatIdx = 0;
-          let bestHeatScore = Infinity;
-          heats.forEach((heat, heatIdx) => {
-            if (heat.length >= heatSizes[heatIdx]) return;
-            const score = scoreAddToHeat(team, heat) + Math.abs(heat.length - heatSizes[heatIdx] / 2);
-            if (score < bestHeatScore) {
-              bestHeatScore = score;
-              bestHeatIdx = heatIdx;
-            }
-          });
-          heats[bestHeatIdx].push(team);
-        });
-        const score = scoreHeats(heats);
-        if (score < bestScore) {
-          bestScore = score;
-          bestHeats = heats;
-          if (score === 0) break;
+  function scheduleMetrics(schedule, teams, boats) {
+    const rows = new Map(teams.map(t => [t.id, { team:t, races:0, counts:Object.fromEntries(boats.map(b=>[b.id,0])), changes:0, directChanges:0, rests:[], last:null }]));
+    const pairs = new Map(); let heatIndex=0, invalid=0;
+    for (const flight of schedule) {
+      const flightTeams = new Set();
+      for (const heat of flight) {
+        const seenBoats = new Set();
+        for (const slot of heat.heatTeams) {
+          const row = rows.get(slot.team.id);
+          if (!row || flightTeams.has(slot.team.id) || seenBoats.has(slot.boat.id)) invalid++;
+          flightTeams.add(slot.team.id); seenBoats.add(slot.boat.id);
+          if (!row) continue;
+          row.races++; row.counts[slot.boat.id]=(row.counts[slot.boat.id]||0)+1;
+          if (row.last) { const rest=heatIndex-row.last.heat-1; row.rests.push(rest); if(row.last.boat!==slot.boat.id){row.changes++;if(rest===0)row.directChanges++;} }
+          row.last={boat:slot.boat.id,heat:heatIndex};
         }
+        for(let a=0;a<heat.heatTeams.length;a++)for(let b=a+1;b<heat.heatTeams.length;b++){
+          const key=JSON.stringify([heat.heatTeams[a].team.id,heat.heatTeams[b].team.id].sort()); pairs.set(key,(pairs.get(key)||0)+1);
+        }
+        heatIndex++;
       }
-      return (bestHeats || []).map((heatTeamsRaw) => ({
-        heatTeams: heatTeamsRaw.map((team) => ({ team, boat: boats[0] })),
-        sitOut: [],
-        cycle: flightIdx
-      }));
+      if(flightTeams.size!==teams.length)invalid++;
     }
-    const heats = heatSizes.map(() => []);
-    let heatIdxForPos = 0;
-    let usedInHeat = 0;
-    order.forEach((teamIdx) => {
-      heats[heatIdxForPos].push(teams[teamIdx]);
-      usedInHeat++;
-      if (usedInHeat >= heatSizes[heatIdxForPos]) {
-        heatIdxForPos++;
-        usedInHeat = 0;
-      }
-    });
-    return heats.map((heatTeamsRaw, heatIdx) => {
-      const heatTeams = heatTeamsRaw.map((team) => ({ team, boat: boats[0] }));
-      return { heatTeams, sitOut: [], cycle: flightIdx };
-    }).sort((a, b2) => options.opponentVariation ? countPairRepeats(a.heatTeams, pairCounts) - countPairRepeats(b2.heatTeams, pairCounts) : 0);
+    const meetings=[];for(let a=0;a<teams.length;a++)for(let b=a+1;b<teams.length;b++)meetings.push(pairs.get(JSON.stringify([teams[a].id,teams[b].id].sort()))||0);
+    const result=[...rows.values()];
+    return { rows:result, pairs, meetings, invalid, changes:result.reduce((s,r)=>s+r.changes,0),directChanges:result.reduce((s,r)=>s+r.directChanges,0), missingPairs:meetings.filter(x=>x===0).length, maxRest:Math.max(0,...result.flatMap(r=>r.rests)), maxBoatSpread:Math.max(0,...result.map(r=>Math.max(...Object.values(r.counts))-Math.min(...Object.values(r.counts)))) };
   }
-  function improveFlightOpponents(flight, pairCounts) {
-    let best = flight;
-    let bestScore = flight.reduce((sum, heat) => sum + scorePairSpread(heat.heatTeams, pairCounts), 0);
-    for (let pass = 0; pass < 3; pass++) {
-      for (let ai = 0; ai < best.length; ai++) {
-        for (let bi = ai + 1; bi < best.length; bi++) {
-          for (let as = 0; as < best[ai].heatTeams.length; as++) {
-            for (let bs = 0; bs < best[bi].heatTeams.length; bs++) {
-              const candidate = best.map((heat) => ({ ...heat, heatTeams: heat.heatTeams.map((slot) => ({ ...slot })) }));
-              const tmp = candidate[ai].heatTeams[as].team;
-              candidate[ai].heatTeams[as].team = candidate[bi].heatTeams[bs].team;
-              candidate[bi].heatTeams[bs].team = tmp;
-              const score = candidate.reduce((sum, heat) => sum + scorePairSpread(heat.heatTeams, pairCounts), 0);
-              if (score < bestScore) {
-                best = candidate;
-                bestScore = score;
-              }
-            }
+  function generateSprintBase(teams,boats,totalFlights,seed) {
+    const template=SPRINT_TEMPLATES[`${teams.length}-${boats.length}`];
+    if(template && totalFlights<=template.length) return template.slice(0,totalFlights).map((flight,fi)=>flight.map(heat=>({
+      heatTeams:heat.flatMap((team,bi)=>team==null?[]:[{team:teams[team-1],boat:boats[bi]}]),sitOut:[],cycle:fi
+    })));
+    const random=scheduleRandom(seed), n=teams.length, b=boats.length;
+    const sizes=getBalancedHeatSizes(n,b), pairs=Array.from({length:n},()=>Array(n).fill(0));
+    const smallCounts=Array(n).fill(0), lastHeat=Array(n).fill(null), schedule=[];
+    const shuffle=list=>{const a=list.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+    const groupCost=groups=>groups.reduce((sum,group)=>sum+group.reduce((s,t,i)=>s+(group.length<Math.max(...sizes)?smallCounts[t]*20:0)+group.slice(i+1).reduce((p,u)=>p+(2*pairs[t][u]+1)*100,0),0),0);
+    for(let fi=0;fi<totalFlights;fi++){
+      let best=null,bestCost=Infinity;
+      for(let attempt=0;attempt<16;attempt++){
+        let pos=0;const order=shuffle(Array.from({length:n},(_,i)=>i));const groups=sizes.map(size=>order.slice(pos,pos+=size));
+        let cost=groupCost(groups);
+        for(let pass=0;pass<3;pass++){
+          let improved=false;
+          for(let a=0;a<groups.length;a++)for(let c=a+1;c<groups.length;c++)for(let i=0;i<groups[a].length;i++)for(let j=0;j<groups[c].length;j++){
+            [groups[a][i],groups[c][j]]=[groups[c][j],groups[a][i]];
+            const candidate=groupCost(groups);
+            if(candidate<cost){cost=candidate;improved=true;}else [groups[a][i],groups[c][j]]=[groups[c][j],groups[a][i]];
           }
+          if(!improved)break;
         }
+        if(cost<bestCost){best=groups.map(g=>g.slice());bestCost=cost;}
       }
-    }
-    return best;
-  }
-  function scoreBoatVariation(schedule, teams, boats) {
-    const counts = {};
-    const lastBoat = {};
-    teams.forEach((team) => {
-      counts[team.id] = {};
-      boats.forEach((boat) => counts[team.id][boat.id] = 0);
-    });
-    let score = 0;
-    schedule.forEach((flight) => {
-      flight.forEach((heat) => {
-        heat.heatTeams.forEach((slot) => {
-          if (!counts[slot.team.id]) return;
-          counts[slot.team.id][slot.boat.id] += 1;
-          if (lastBoat[slot.team.id] === slot.boat.id) score += 25;
-          lastBoat[slot.team.id] = slot.boat.id;
-        });
-      });
-    });
-    Object.values(counts).forEach((teamCounts) => {
-      const vals = Object.values(teamCounts);
-      const max = Math.max(...vals);
-      const min = Math.min(...vals);
-      score += (max - min) * 500;
-      vals.forEach((v) => score += v * v * 20);
-    });
-    return score;
-  }
-  function optimizeBoatVariation(schedule, teams, boats) {
-    let best = schedule.map((flight) => flight.map((heat) => ({ ...heat, heatTeams: heat.heatTeams.map((slot) => ({ ...slot })) })));
-    let bestScore = scoreBoatVariation(best, teams, boats);
-    const heatHasUniqueBoats = (heat) => {
-      const ids = heat.heatTeams.map((slot) => slot.boat.id);
-      return ids.length === new Set(ids).size;
-    };
-    let improved = true;
-    let passes = 0;
-    while (improved && passes < 8) {
-      improved = false;
-      passes++;
-      for (let fi = 0; fi < best.length; fi++) {
-        for (let hi = 0; hi < best[fi].length; hi++) {
-          const heatTeams = best[fi][hi].heatTeams;
-          for (let a = 0; a < heatTeams.length; a++) {
-            for (let b = a + 1; b < heatTeams.length; b++) {
-              const candidate = best.map((flight) => flight.map((heat) => ({ ...heat, heatTeams: heat.heatTeams.map((slot) => ({ ...slot })) })));
-              const tmp = candidate[fi][hi].heatTeams[a].boat;
-              candidate[fi][hi].heatTeams[a].boat = candidate[fi][hi].heatTeams[b].boat;
-              candidate[fi][hi].heatTeams[b].boat = tmp;
-              const score = scoreBoatVariation(candidate, teams, boats);
-              if (score < bestScore) {
-                best = candidate;
-                bestScore = score;
-                improved = true;
-              }
-            }
-          }
-        }
-      }
-      const slots = [];
-      best.forEach((flight, fi) => flight.forEach((heat, hi) => heat.heatTeams.forEach((slot, si) => slots.push({ fi, hi, si }))));
-      for (let a = 0; a < slots.length; a++) {
-        for (let b = a + 1; b < slots.length; b++) {
-          const A = slots[a];
-          const B = slots[b];
-          if (A.fi === B.fi && A.hi === B.hi) continue;
-          const candidate = best.map((flight) => flight.map((heat) => ({ ...heat, heatTeams: heat.heatTeams.map((slot) => ({ ...slot })) })));
-          const tmp = candidate[A.fi][A.hi].heatTeams[A.si].boat;
-          candidate[A.fi][A.hi].heatTeams[A.si].boat = candidate[B.fi][B.hi].heatTeams[B.si].boat;
-          candidate[B.fi][B.hi].heatTeams[B.si].boat = tmp;
-          if (!heatHasUniqueBoats(candidate[A.fi][A.hi]) || !heatHasUniqueBoats(candidate[B.fi][B.hi])) continue;
-          const score = scoreBoatVariation(candidate, teams, boats);
-          if (score < bestScore) {
-            best = candidate;
-            bestScore = score;
-            improved = true;
-          }
-        }
-      }
-    }
-    return best;
-  }
-  function generateRotationSchedule(teams, boats, numRounds, options = {}) {
-    const n = teams.length, b = boats.length;
-    if (n < 2 || b < 2) return [];
-    const mode = options.mode || "allsvenskan";
-    const opponentVariation = true;
-    const totalFlights = numRounds * b;
-    const schedule = [];
-    const pairCounts = {};
-    const prevBoatByTeam = {};
-    const boatUseCounts = {};
-    const baseOrder = Array.from({ length: n }, (_, i) => i);
-    for (let fi = 0; fi < totalFlights; fi++) {
-      let order;
-      if (mode === "boatChanges") {
-        const block = Math.floor(fi / Math.max(1, n));
-        order = rotateArray(baseOrder, block).sort((a, b2) => {
-          const boatA = prevBoatByTeam[teams[a].id]?.id || "";
-          const boatB = prevBoatByTeam[teams[b2].id]?.id || "";
-          return boatA.localeCompare(boatB) || a - b2;
-        });
-      } else {
-        const fixed = baseOrder[0];
-        const rotating = baseOrder.slice(1);
-        const rot = rotateArray(rotating, fi);
-        order = [fixed, ...rot];
-        const weave = [];
-        for (let i = 0; i < order.length; i += 2) weave.push(order[i]);
-        for (let i = order.length - 1 - order.length % 2; i >= 1; i -= 2) weave.push(order[i]);
-        order = weave;
-      }
-      let flight = makeFlightFromOrder(order, teams, boats, fi, prevBoatByTeam, pairCounts, { mode, opponentVariation });
-      flight = improveFlightOpponents(flight, pairCounts);
-      flight = balanceFlightBoats(flight, boats, fi, prevBoatByTeam, boatUseCounts, { mode, opponentVariation });
-      flight.forEach((heat) => heat.heatTeams.forEach((slot) => {
-        prevBoatByTeam[slot.team.id] = slot.boat;
-        if (!boatUseCounts[slot.team.id]) boatUseCounts[slot.team.id] = {};
-        boatUseCounts[slot.team.id][slot.boat.id] = (boatUseCounts[slot.team.id][slot.boat.id] || 0) + 1;
-      }));
-      flight.forEach((heat) => registerPairs(heat.heatTeams, pairCounts));
+      // Order races to avoid consecutive starts and excessively long waits where possible.
+      let ordered=best,restCost=Infinity;
+      const visit=(prefix,remaining)=>{
+        if(!remaining.length){let cost=0;prefix.forEach((g,hi)=>g.forEach(t=>{if(lastHeat[t]!=null){const rest=fi*sizes.length+hi-lastHeat[t]-1;cost+=(rest===0?20:0)+Math.pow(rest-(sizes.length-1),2);}}));if(cost<restCost){ordered=prefix;restCost=cost;}return;}
+        remaining.forEach((g,i)=>visit([...prefix,g],remaining.filter((_,j)=>j!==i)));
+      };
+      visit([],best);
+      const flight=ordered.map((group,hi)=>({heatTeams:group.map((t,i)=>({team:teams[t],boat:boats[(fi+i)%b]})),sitOut:[],cycle:fi}));
+      ordered.forEach((g,hi)=>g.forEach((t,i)=>{lastHeat[t]=fi*sizes.length+hi;if(g.length<Math.max(...sizes))smallCounts[t]++;g.slice(i+1).forEach(u=>{pairs[t][u]++;pairs[u][t]++;});}));
       schedule.push(flight);
     }
-    return optimizeBoatVariation(schedule, teams, boats);
+    return balanceSprintBoats(schedule,teams,boats);
+  }
+  function balanceSprintBoats(schedule,teams,boats) {
+    const counts=new Map(teams.map(t=>[t.id,new Map(boats.map(b=>[b.id,0]))]));
+    const heats=schedule.flat();heats.forEach(h=>h.heatTeams.forEach(s=>counts.get(s.team.id).set(s.boat.id,counts.get(s.team.id).get(s.boat.id)+1)));
+    const delta=(slot,to)=>{const c=counts.get(slot.team.id);return 2*((c.get(to.id)||0)-(c.get(slot.boat.id)||0)+1);};
+    const move=(slot,to)=>{const c=counts.get(slot.team.id);c.set(slot.boat.id,c.get(slot.boat.id)-1);c.set(to.id,(c.get(to.id)||0)+1);slot.boat=to;};
+    for(let pass=0;pass<20;pass++){
+      let improved=false;
+      for(const heat of heats)for(let i=0;i<heat.heatTeams.length;i++){
+        const a=heat.heatTeams[i];
+        for(const boat of boats)if(!heat.heatTeams.some(s=>s.boat.id===boat.id)&&delta(a,boat)<0){move(a,boat);improved=true;}
+        for(let j=i+1;j<heat.heatTeams.length;j++){const c=heat.heatTeams[j];if(delta(a,c.boat)+delta(c,a.boat)<0){const old=a.boat;move(a,c.boat);move(c,old);improved=true;}}
+      }
+      if(!improved)break;
+    }
+    return schedule;
+  }
+  function minimizeSprintChanges(schedule, teams) {
+    const next=schedule.map(f=>f.map(h=>({...h,heatTeams:h.heatTeams.map(s=>({...s}))})));
+    const visits=new Map(teams.map(t=>[t.id,[]]));const heats=next.flat();heats.forEach((h,index)=>h.heatTeams.forEach(s=>visits.get(s.team.id).push({slot:s,index})));
+    const cost=id=>{const v=visits.get(id);let changes=0,direct=0;for(let i=1;i<v.length;i++)if(v[i].slot.boat.id!==v[i-1].slot.boat.id){changes++;if(v[i].index===v[i-1].index+1)direct++;}return changes*1000+direct;};
+    const colors=[...new Set(heats.flatMap(h=>h.heatTeams.map(s=>s.boat.id)))];
+    // Alternating cycles in the crew/race graph preserve exact per-crew boat counts.
+    // Every affected race still has the same boats and the same crews.
+    for(let pass=0;pass<16;pass++){
+      let improved=false;
+      for(let a=0;a<colors.length;a++)for(let b=a+1;b<colors.length;b++){
+        const edges=new Map(teams.map(t=>[t.id,[]]));
+        for(const heat of heats){const x=heat.heatTeams.find(s=>s.boat.id===colors[a]),y=heat.heatTeams.find(s=>s.boat.id===colors[b]);if(x&&y)edges.get(x.team.id).push({x,y,to:y.team.id});}
+        let found=false;
+        for(const start of teams){
+          if(found)break;let budget=300;
+          const visit=(id,path,seen)=>{
+            if(found||--budget<0||path.length>7)return;
+            for(const edge of edges.get(id)||[]){
+              if(found)break;
+              if(edge.to===start.id&&path.length){
+                const cycle=[...path,edge],ids=cycle.map(e=>e.x.team.id),before=ids.reduce((s,t)=>s+cost(t),0);
+                cycle.forEach(e=>{[e.x.boat,e.y.boat]=[e.y.boat,e.x.boat];});
+                if(ids.reduce((s,t)=>s+cost(t),0)<before){found=true;improved=true;return;}
+                cycle.forEach(e=>{[e.x.boat,e.y.boat]=[e.y.boat,e.x.boat];});
+              }else if(!seen.has(edge.to)){visit(edge.to,[...path,edge],new Set([...seen,edge.to]));}
+            }
+          };
+          visit(start.id,[],new Set([start.id]));
+        }
+      }
+      if(!improved)break;
+    }
+    return next;
+  }
+  function generateRotationSchedule(teams,boats,numRounds,options={}) {
+    if(teams.length<2||boats.length<2)return [];
+    const totalFlights=Math.max(1,Math.min(48,Math.round(options.flights||numRounds*boats.length)));
+    const seed=options.seed??1;
+    const base=generateSprintBase(teams,boats,totalFlights,seed);
+    const next=options.mode==='boatChanges'?minimizeSprintChanges(base,teams):base;
+    next.forEach(f=>f.forEach(h=>{const racing=new Set(h.heatTeams.map(s=>s.team.id));h.sitOut=teams.filter(t=>!racing.has(t.id));}));
+    const template=SPRINT_TEMPLATES[`${teams.length}-${boats.length}`];
+    next[0][0].scheduleInfo={mode:options.mode||'allsvenskan',source:template&&totalFlights<=template.length?'Uppladdad mall':'Beräknat rotationsschema',seed,flights:totalFlights,baseChanges:scheduleMetrics(base,teams,boats).changes};
+    return next;
+  }
+  function ScheduleQuality({schedule,teams,boats}) {
+    const h=import_react.default.createElement;
+    const metrics=(0,import_react.useMemo)(()=>scheduleMetrics(schedule.filter(f=>!f.some(x=>x.final)),teams,boats),[schedule,teams,boats]);
+    const info=schedule[0]?.[0]?.scheduleInfo;
+    const th={padding:'7px 9px',textAlign:'left',borderBottom:'1px solid var(--c-border)',whiteSpace:'nowrap'};
+    const range=list=>!list.length?'–':Math.min(...list)===Math.max(...list)?String(list[0]):`${Math.min(...list)}–${Math.max(...list)}`;
+    const summaryStyle={cursor:'pointer',fontWeight:700};
+    const boatRows=metrics.rows.map(r=>h('tr',{key:r.team.id},[r.team.name,r.races,...boats.map(b=>r.counts[b.id]||0),r.changes,range(r.rests)].map((x,i)=>h('td',{key:i,style:th},x))));
+    const boatTable=h('table',{style:{borderCollapse:'collapse',fontSize:12,width:'100%'}},
+      h('thead',null,h('tr',null,['Besättning','Seglingar',...boats.map(b=>b.label),'Byten','Vila (heat)'].map((x,i)=>h('th',{key:i,style:th},x)))),h('tbody',null,boatRows));
+    const opponentRows=teams.map((t,i)=>h('tr',{key:t.id},h('th',{style:th},`${i+1}. ${t.name}`),teams.map(u=>h('td',{key:u.id,style:th},u.id===t.id?'–':metrics.pairs.get(JSON.stringify([t.id,u.id].sort()))||0))));
+    const opponentTable=h('table',{style:{borderCollapse:'collapse',fontSize:12}},
+      h('thead',null,h('tr',null,h('th',{style:th},'Besättning'),teams.map((t,i)=>h('th',{key:t.id,style:th,title:t.name},i+1)))),h('tbody',null,opponentRows));
+    return h(Sect,{title:'Schemakontroll'},
+      h('p',{style:{fontSize:13,lineHeight:1.6,marginBottom:10}}, info?`${info.source} · ${info.mode==='boatChanges'?'Färre båtbyten':info.mode==='mixed'?'Delvis låst schema':'Klassisk rotation'}. `:'Befintligt schema. ',
+        `${range(metrics.rows.map(r=>r.races))} seglingar per besättning. ${metrics.changes} båtbyten, varav ${metrics.directChanges} mellan två direkt på varandra följande heat. `,
+        info?.mode==='boatChanges'&&!metrics.invalid?`Grundschemat hade ${info.baseChanges} byten före optimering. `:'',
+        'Kontrollen gäller schemat som visas, inklusive manuella ändringar.'),
+      h('p',{style:{fontSize:12,color:'var(--c-muted)',lineHeight:1.6}},`${metrics.missingPairs} besättningspar möts aldrig. Möten per par: ${range(metrics.meetings)}. Längsta vila: ${metrics.maxRest} heat. Största skillnad i en besättnings användning av olika båtar: ${metrics.maxBoatSpread} seglingar.`),
+      metrics.invalid>0&&h('p',{role:'alert',style:{color:'#dc2626'}},'Schemat har konflikter eller ofullständiga omgångar. Kontrollera innan start.'),
+      h('details',{style:{marginTop:12}},h('summary',{style:summaryStyle},'Båtfördelning, byten och vila per besättning'),h('div',{style:{overflowX:'auto',marginTop:8}},boatTable)),
+      h('details',{style:{marginTop:12}},h('summary',{style:summaryStyle},'Motståndarmatris'),h('div',{style:{overflowX:'auto',marginTop:8}},opponentTable)));
+  }
+  function BoatScheduleTable({schedule,boats}) {
+    const h=import_react.default.createElement;let index=0;
+    const cell={padding:'8px',border:'1px solid var(--c-border)',textAlign:'left',fontSize:12};
+    return h(Sect,{title:'Heat och båtar – som i mallarna'},h('div',{className:'schedule-scroll',tabIndex:0,'aria-label':'Seglingsschema med heat och båtar',style:{overflowX:'auto'}},h('table',{className:'boat-schedule',style:{borderCollapse:'collapse',width:'100%',minWidth:550}},
+      h('thead',null,h('tr',null,h('th',{style:cell},'Omgång'),h('th',{style:cell},'Heat'),boats.map(b=>h('th',{key:b.id,style:cell},h(BoatChip,{boat:b,size:'sm'}))))),
+      h('tbody',null,schedule.flatMap((f,fi)=>f.map(heat=>h('tr',{key:index},h('td',{style:cell},fi+1),h('td',{style:cell},++index),boats.map(b=>h('td',{key:b.id,style:cell},heat.heatTeams.find(s=>s.boat.id===b.id)?.team.name||'–')))))))));
   }
   function buildHeatMatrix(schedule, teams) {
     const allHeats = schedule.flatMap(
@@ -13546,6 +13502,13 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     }).join("");
     const legend = (boatColors || []).map((boat) => `<span class="legend-boat" style="background:${escapeHtml(boat.bg)};color:${escapeHtml(boat.text)}">${escapeHtml(boat.label)}</span>`).join("");
     const heatDetails = allHeats.map((heat) => `<div class="heat"><h3>Flight ${heat.flightNum + 1} · Heat ${heat.globalIdx + 1}</h3>${heat.heatTeams.map((slot) => `<div><span class="boat small" style="background:${escapeHtml(slot.boat.bg)};color:${escapeHtml(slot.boat.text)}">${escapeHtml(slot.boat.label)}</span> ${escapeHtml(slot.team.name)}</div>`).join("")}</div>`).join("");
+    const boatTable = `<h2>Heat och båtar</h2><table class="boat-table"><colgroup><col style="width:65px"><col style="width:55px">${boatColors.map(()=>"<col>").join("")}</colgroup><thead><tr><th>Omgång</th><th>Heat</th>${boatColors.map(b=>`<th>${escapeHtml(b.label)}</th>`).join("")}</tr></thead><tbody>${allHeats.map(h=>`<tr><td>${h.flightNum+1}</td><td>${h.globalIdx+1}</td>${boatColors.map(b=>`<td>${escapeHtml(h.heatTeams.find(s=>s.boat.id===b.id)?.team.name||"–")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    const chunks=[];let group=[],count=0;
+    (schedule||[]).forEach((flight,fi)=>{if(count+flight.length>6&&group.length){chunks.push(group);group=[];count=0;}group.push({flight,fi});count+=flight.length;});if(group.length)chunks.push(group);
+    const crewTables=chunks.map(chunk=>{
+      const heats=allHeats.filter(h=>chunk.some(g=>g.fi===h.flightNum));
+      return `<section class="matrix-chunk"><h2>Besättningsschema · omgång ${chunk[0].fi+1}–${chunk[chunk.length-1].fi+1}</h2><table><thead><tr><th class="team">Besättning</th>${heats.map(h=>`<th>O${h.flightNum+1} · H${h.globalIdx+1}</th>`).join("")}</tr></thead><tbody>${teams.map(t=>`<tr><th class="team">${escapeHtml(t.name)}</th>${heats.map(h=>{const b=matrix?.[t.id]?.[h.globalIdx];return `<td>${b?`<span class="boat" style="background:${escapeHtml(b.bg)};color:${escapeHtml(b.text)}">${escapeHtml(b.label)}</span>`:"–"}</td>`;}).join("")}</tr>`).join("")}</tbody></table></section>`;
+    }).join("");
     const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${escapeHtml(title)} - schema</title><style>
       @page { size: A4 landscape; margin: 10mm; }
       * { box-sizing: border-box; }
@@ -13554,22 +13517,27 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       h1 { font-size:24px; line-height:1.1; margin:0 0 5px; }
       .meta { color:#4b5563; font-size:12px; font-weight:600; }
       .legend { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width:45%; }
-      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:3px 8px; font-size:11px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; text-align:center; }
+      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:3px 8px; font-size:13px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; max-width:100%; white-space:normal; line-height:1.4; text-align:center; }
+      .matrix-chunk { margin-top:24px; }
+      thead { display:table-header-group; }
+      h2 { break-after:avoid; font-size:18px; }
+      tr { break-inside:avoid; }
       .boat,.legend-boat,td,th { overflow-wrap:anywhere; }
+      .boat,.legend-boat { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       .boat.small { font-size:10px; min-width:44px; margin-right:5px; }
-      table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; page-break-inside:auto; }
-      th,td { border:1px solid #d1d5db; padding:5px 4px; text-align:center; vertical-align:middle; }
+      table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; line-height:1.4; page-break-inside:auto; }
+      th,td { border:1px solid #d1d5db; padding:8px 6px; text-align:center; vertical-align:middle; }
       thead th { background:#eef2ff; color:#111827; font-weight:900; }
       thead .flight { background:#dbeafe; font-size:11px; }
-      th.team { position:sticky; left:0; background:#fff; text-align:left; min-width:130px; width:130px; font-size:11px; }
+      th.team { background:#fff; text-align:left; width:170px; font-size:12px; }
       td.empty { color:#9ca3af; background:#f9fafb; }
       .heat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:18px; page-break-before:auto; }
       .heat { border:1px solid #d1d5db; border-radius:6px; padding:8px; break-inside:avoid; font-size:11px; }
       .heat h3 { margin:0 0 6px; font-size:11px; color:#1d4ed8; }
       .actions { margin:14px 0; }
       button { border:0; background:#1d4ed8; color:#fff; border-radius:7px; padding:9px 14px; font-weight:800; cursor:pointer; }
-      @media print { body { padding:0; } .actions { display:none; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
-    </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="if(window.opener &amp;&amp; !window.opener.closed) window.opener.focus(); window.close();">← Tillbaka</button><button onclick="window.print()">Skriv ut</button></div><table><thead><tr><th rowspan="2" class="team">Team</th>${flightHeaders}</tr><tr>${heatHeaders}</tr></thead><tbody>${rows}</tbody></table><section class="heat-grid">${heatDetails}</section></body></html>`;
+      @media print { body { padding:0; } .actions { display:none !important; } .matrix-chunk { break-before:page; margin-top:0; } .heat-grid { grid-template-columns:repeat(3,1fr); } }
+    </style></head><body><header><div><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(dateLine || "Seglingsschema")} · ${teams.length} team · ${allHeats.length} heat</div></div><div class="legend">${legend}</div></header><div class="actions"><button onclick="if(window.opener &amp;&amp; !window.opener.closed) window.opener.focus(); window.close();">← Tillbaka</button><button onclick="window.print()">Skriv ut</button></div>${boatTable}${crewTables}</body></html>`;
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
       window.alert("Webbläsaren blockerade utskriftsfönstret. Tillåt popups för appen och prova igen.");
@@ -13706,29 +13674,37 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     });
     return merged;
   }
-  function ScheduleView({ regatta, boatColors, teams, schedule, setSchedule, results, onNext }) {
+  function ScheduleView({ regatta, boatColors, teams, schedule, setSchedule, results, liveState, onNext }) {
     const numBoats = regatta.numBoats || 4;
     const activeBoats = boatColors.slice(0, numBoats);
     const [editMode, setEditMode] = (0, import_react.useState)(false);
     const [swapA, setSwapA] = (0, import_react.useState)(null);
-    const [numRounds, setNumRounds] = (0, import_react.useState)(2);
-    const [scheduleMode, setScheduleMode] = (0, import_react.useState)("allsvenskan");
-    const [opponentVariation, setOpponentVariation] = (0, import_react.useState)(true);
+    const [numFlights, setNumFlights] = (0, import_react.useState)(schedule[0]?.[0]?.scheduleInfo?.flights || schedule.length || (SPRINT_TEMPLATES[`${teams.length}-${numBoats}`] ? 15 : numBoats * 2));
+    const [scheduleMode, setScheduleMode] = (0, import_react.useState)(schedule[0]?.[0]?.scheduleInfo?.mode === "boatChanges" ? "boatChanges" : "allsvenskan");
+    
     const [drawInfo, setDrawInfo] = (0, import_react.useState)(null);
     const generated = schedule.length > 0;
     const flightsPerCycle = numBoats;
     const completedHeatCount = getCompletedHeatIndices(results).length;
     const generate = () => {
+      if(liveState?.livePhase && liveState.livePhase!=="idle"){window.alert("Avsluta pågående start/heat innan du ändrar schemat.");return;}
+      if(schedule.some(f=>f.some(h=>h.final))){window.alert("Finalheat har skapats. Grundschemat behålls för att skydda finalen och resultaten.");return;}
       if (generated && completedHeatCount > 0) {
-        const ok = window.confirm(`Det finns ${completedHeatCount} heat med sparade resultat.\n\nRegenerering låser redan seglade heat och bevarar deras matcher, båtar och resultat. Endast heat utan resultat lottas om.\n\nVill du fortsätta?`);
+        const ok = window.confirm(`Det finns ${completedHeatCount} heat med sparade resultat.\n\nAlla omgångar fram till senast sparade heat bevaras helt. Bara senare omgångar lottas om.\n\nVill du fortsätta?`);
         if (!ok) return;
       } else if (generated) {
         const ok = window.confirm("Vill du regenerera och lotta om hela schemat? Inga resultat finns sparade ännu.");
         if (!ok) return;
       }
       const drawnTeams = shuffleTeamsForDraw(teams);
-      const s = generateRotationSchedule(drawnTeams, activeBoats, numRounds, { mode: scheduleMode, opponentVariation });
-      const merged = mergePreservedResultHeats(schedule, s, results, teams);
+      const s = generateRotationSchedule(drawnTeams, activeBoats, 1, { mode: scheduleMode, flights: numFlights, seed: Math.floor(Math.random()*4294967296) });
+      // Preserve entire completed rounds, avoiding duplicate/missing crews in partial rounds.
+      let lastLocked=-1,g=0;
+      schedule.forEach((flight,fi)=>flight.forEach(()=>{if(results?.[`g${g++}`])lastLocked=fi;}));
+      const merged=lastLocked<0?s:[...schedule.slice(0,lastLocked+1),...s.slice(lastLocked+1)];
+      if(lastLocked>=0 && s.length>lastLocked+1){merged[0]=merged[0].slice();merged[0][0]={...merged[0][0],scheduleInfo:{mode:"mixed",source:"Bevarade omgångar och ny rotation",flights:merged.length}};}
+      const check=scheduleMetrics(merged.filter(f=>!f.some(h=>h.final)),teams,activeBoats);
+      if(check.invalid){window.alert("Schemat kunde inte skapas utan konflikter. Befintligt schema har behållits.");return;}
       setDrawInfo({ at: (/* @__PURE__ */ new Date()).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }), order: drawnTeams.map((t) => t.name) });
       setSchedule(merged);
       setEditMode(false);
@@ -13739,6 +13715,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const printSchedule = () => openPrintableSchedule(regatta, teams, schedule, matrix, allHeats, activeBoats);
     const handleCellClick = (teamId, heatGlobalIdx) => {
       if (!editMode) return;
+      if(liveState?.livePhase && liveState.livePhase!=="idle"){window.alert("Avsluta pågående start/heat innan du ändrar båttilldelningen.");return;}
       if (results?.[`g${heatGlobalIdx}`]) {
         window.alert("Heatet har sparat resultat och är låst.");
         return;
@@ -13789,19 +13766,9 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const numCycles = generated ? schedule.length : 0;
     const heatsPerFlight = Math.ceil((teams.length || 1) / numBoats);
     const heatSizeText = getBalancedHeatSizes(teams.length || 1, numBoats).join("+");
-    return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 900, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Schemainformation" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", marginBottom: 8 } }, "Antal block \u2014 varje block = ", numBoats, " flighter. Varje flight har ", heatsPerFlight, " heat s\xE5 att alla team seglar exakt ett heat per flight. Heatstorlek: ", heatSizeText, "."), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" } }, [1, 2, 3, 4, 5, 6].map((n) => /* @__PURE__ */ import_react.default.createElement("button", { key: n, onClick: () => setNumRounds(n), style: {
-      background: n === numRounds ? "var(--c-accent)" : "var(--c-surface2)",
-      color: n === numRounds ? "#fff" : "var(--c-text)",
-      border: "none",
-      borderRadius: 8,
-      padding: "7px 14px",
-      fontSize: 13,
-      fontWeight: 700,
-      cursor: "pointer",
-      fontFamily: "inherit"
-    } }, n, "\xD7")), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)", marginLeft: 4 } }, "= ", numRounds * numBoats, " flighter totalt \xB7 ", numRounds * numBoats, " race per team"))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginTop: 14 } }, [
-      ["allsvenskan", "Allsvenskan-modell", "Roterar lagen genom f\xE4ltet och fördelar båtarna jämnt."],
-      ["boatChanges", "Minimera b\xE5tbyten", "F\xF6rs\xF6ker l\xE5ta varje team beh\xE5lla samma b\xE5t mellan flighter."]
+    return /* @__PURE__ */ import_react.default.createElement("div", { style: { maxWidth: 1400, margin: "0 auto" } }, /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Schemainformation" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { marginBottom: 16 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, color: "var(--c-muted)", marginBottom: 8 } }, "Varje omgång (flight) innehåller ett heat per besättning. Heatstorlek: ", heatSizeText, "."), import_react.default.createElement("label", { style: { fontSize: 13 } }, "Antal omgångar", import_react.default.createElement("input", { className:"inp", type:"number", min:1, max:48, value:numFlights, "aria-label":"Antal omgångar", onChange:e=>setNumFlights(Math.max(1,Math.min(48,Number(e.target.value)||1))), style:{width:100,marginLeft:10} })), import_react.default.createElement("p", { style:{fontSize:12,color:"var(--c-muted)",marginTop:8,lineHeight:1.5} }, SPRINT_TEMPLATES[`${teams.length}-${numBoats}`] && numFlights<=15 ? "Använder din uppladdade mall (upp till 15 omgångar). Besättningarna lottas till mallens platser." : "Ingen uppladdad mall för denna kombination/längd. Appen beräknar ett rotationsschema med jämna heat och varierade motståndare.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginTop: 14 } }, [
+      ["allsvenskan", "Klassisk rotation", "Samma struktur som exempelschemana. Använder uppladdad mall när den passar."],
+      ["boatChanges", "Färre båtbyten", "Optimerar båttilldelningen i samma grundschema. Bevarar motståndare, vila och varje besättnings antal seglingar i varje båt."]
     ].map(([id, title, desc]) => /* @__PURE__ */ import_react.default.createElement("button", { key: id, onClick: () => setScheduleMode(id), style: {
       textAlign: "left",
       background: scheduleMode === id ? "rgba(110,168,254,0.18)" : "var(--c-surface2)",
@@ -13811,12 +13778,12 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       padding: "10px 12px",
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "flex", gap: 8, alignItems: "flex-start", background: "var(--c-surface2)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "10px 12px", cursor: "default" } }, /* @__PURE__ */ import_react.default.createElement("input", { type: "checkbox", checked: true, disabled: true, onChange: () => setOpponentVariation(true), style: { marginTop: 2 } }), /* @__PURE__ */ import_react.default.createElement("span", null, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 13, fontWeight: 800, color: "var(--c-text)", marginBottom: 3 } }, "Motst\xE5ndarvariation alltid aktiv"), /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, "Schemat s\xF6ker aktivt nya kombinationer s\xE5 att samma team inte m\xF6ter varandra i on\xF6dan.")))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
+    } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 13, fontWeight: 800, marginBottom: 3 } }, title), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", lineHeight: 1.4 } }, desc))), import_react.default.createElement("p", { style:{gridColumn:"1 / -1",fontSize:12,lineHeight:1.5,color:"var(--c-muted)"} }, "Färre båtbyten är en sökning efter förbättringar, inte en garanti för minsta möjliga antal. Jämför det faktiska schemat i schemakontrollen.")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 } }, [
       ["Team", teams.length],
       ["B\xE5tar", numBoats],
-      ["Heats totalt", generated ? totalHeats : numRounds * numBoats * Math.ceil((teams.length || 1) / numBoats)],
-      ["Race / team", numRounds * numBoats]
-    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Minimera b\xE5tbyten" : "Allsvenskan-modell"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", opponentVariation ? " Extra motst\xE5ndarvariation \xE4r p\xE5." : "", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && completedHeatCount > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.36)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#FCD34D", marginBottom: 14, lineHeight: 1.5, fontWeight: 700 } }, completedHeatCount, " heat har sparade resultat och \xE4r l\xE5sta. Regenerering lottar bara om heat utan resultat."), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? completedHeatCount > 0 ? "Regenerera återstående heat" : "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
+      ["Heats totalt", generated ? totalHeats : numFlights * Math.ceil((teams.length || 1) / numBoats)],
+      ["Race / team", generated ? schedule.length : numFlights]
+    ].map(([l, v]) => /* @__PURE__ */ import_react.default.createElement("div", { key: l, style: { background: "var(--c-surface2)", borderRadius: 10, padding: "10px 12px", textAlign: "center" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 22, fontWeight: 800, color: "var(--c-accent)" } }, v), /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 11, color: "var(--c-muted)", marginTop: 2 } }, l)))), /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "var(--c-surface2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.6 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "var(--c-text)" } }, scheduleMode === "boatChanges" ? "Färre båtbyten" : "Klassisk rotation"), " \u2014 varje flight inneh\xE5ller alla team exakt en g\xE5ng, uppdelade p\xE5 ", heatsPerFlight, " balanserade heat (", heatSizeText, ").", " Valet gäller nästa generering. Sparade scheman ändras först när du genererar igen.", generated && editMode ? /* @__PURE__ */ import_react.default.createElement("span", { style: { color: "#FBBF24" } }, " Redigeringsl\xE4ge \u2014 klicka tv\xE5 celler i samma heat f\xF6r att byta b\xE5t.") : ""), generated && completedHeatCount > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.36)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#FCD34D", marginBottom: 14, lineHeight: 1.5, fontWeight: 700 } }, completedHeatCount, " heat har sparade resultat och \xE4r l\xE5sta. Omgångarna fram till senast sparade heat bevaras helt."), generated && drawInfo && /* @__PURE__ */ import_react.default.createElement("div", { style: { background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.28)", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "var(--c-muted)", marginBottom: 14, lineHeight: 1.5 } }, /* @__PURE__ */ import_react.default.createElement("strong", { style: { color: "#4ade80" } }, "Lottad ordning ", drawInfo.at, ": "), drawInfo.order.join(", ")), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ import_react.default.createElement("button", { className: "btn-primary", onClick: generate }, generated ? completedHeatCount > 0 ? "Regenerera återstående heat" : "Regenerera och lotta om" : "Generera och lotta schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: printSchedule, style: { background: "var(--c-surface2)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" } }, "Skriv ut schema"), generated && /* @__PURE__ */ import_react.default.createElement("button", { onClick: () => {
       setEditMode((e) => !e);
       setSwapA(null);
     }, style: {
@@ -13829,7 +13796,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       fontWeight: 600,
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, editMode ? "\u2713 St\xE4ng redigering" : "\u270E Redigera b\xE5ttilldelning")), editMode && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, background: "rgba(146,64,14,0.1)", border: "1px solid rgba(146,64,14,0.4)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#FCD34D" } }, "Klicka p\xE5 ett team i ett heat \u2192 klicka sedan ett annat team i samma heat \u2192 deras b\xE5tar byter plats.", swapA ? /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 700 } }, " Vald: heat ", swapA.heatGlobalIdx + 1, ". Klicka nu p\xE5 ett annat team i samma heat.") : "")), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Kappseglingsschema" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { style: { borderCollapse: "collapse", width: "100%", fontSize: 12 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { style: { textAlign: "left", padding: "6px 10px", color: "var(--c-muted)", fontWeight: 600, borderBottom: "2px solid var(--c-border)", minWidth: 120 } }, "Team"), flightGroups.map(
+    } }, editMode ? "\u2713 St\xE4ng redigering" : "\u270E Redigera b\xE5ttilldelning")), editMode && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, background: "rgba(146,64,14,0.1)", border: "1px solid rgba(146,64,14,0.4)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#FCD34D" } }, "Klicka p\xE5 ett team i ett heat \u2192 klicka sedan ett annat team i samma heat \u2192 deras b\xE5tar byter plats.", swapA ? /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 700 } }, " Vald: heat ", swapA.heatGlobalIdx + 1, ". Klicka nu p\xE5 ett annat team i samma heat.") : "")), generated && import_react.default.createElement(ScheduleQuality, {schedule,teams,boats:activeBoats}), generated && import_react.default.createElement(BoatScheduleTable, {schedule,boats:activeBoats}), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Kappseglingsschema" }, import_react.default.createElement("p", {style:{fontSize:13,color:"var(--c-muted)",marginBottom:10}}, "Dra schemat i sidled för fler heat. Varje färg och segelnummer ligger i en egen kolumn. Besättningens namn följer med när du bläddrar."), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { className:"schedule-matrix crew-schedule", style: { "--heat-count":totalHeats, borderCollapse: "separate", width: "100%", fontSize: 14 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { style: { textAlign: "left", padding: "6px 10px", color: "var(--c-muted)", fontWeight: 600, borderBottom: "2px solid var(--c-border)", minWidth: 120 } }, "Team"), flightGroups.map(
       (fg) => fg.heats.map((h, hi) => /* @__PURE__ */ import_react.default.createElement("th", { key: h.globalIdx, style: {
         padding: "4px 6px",
         textAlign: "center",
@@ -13888,7 +13855,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
           color: "var(--c-muted)"
         } }, heat ? heat.heatTeams.length : "\u2014");
       })
-    ), /* @__PURE__ */ import_react.default.createElement("td", { style: { borderTop: "2px solid var(--c-border)", borderLeft: "2px solid var(--c-border)" } }))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--c-border)" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)", marginRight: 4 } }, "Segelnummer:"), activeBoats.map((b) => /* @__PURE__ */ import_react.default.createElement(BoatChip, { key: b.id, boat: b, size: "sm" })), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)", marginLeft: 8 } }, "\u2014 = vilar"))), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Heat\xF6versikt" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 16 } }, Array.from({ length: numCycles }, (_, ci) => {
+    ), /* @__PURE__ */ import_react.default.createElement("td", { style: { borderTop: "2px solid var(--c-border)", borderLeft: "2px solid var(--c-border)" } }))))), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--c-border)" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)", marginRight: 4 } }, "Båtar:"), activeBoats.map((b) => /* @__PURE__ */ import_react.default.createElement(BoatChip, { key: b.id, boat: b, size: "sm" })), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)", marginLeft: 8 } }, "\u2014 = vilar"))), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Heat\xF6versikt" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 16 } }, Array.from({ length: numCycles }, (_, ci) => {
       const cycleFlights = flightGroups.filter((fg) => fg.fi === ci);
       const cycleAllHeats = cycleFlights.flatMap((fg) => fg.heats.map((h) => allHeats[h.globalIdx])).filter(Boolean);
       if (cycleAllHeats.length === 0) return null;
@@ -15339,7 +15306,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         return h("td", { key: heat.globalIdx, style: { background: isActive ? "rgba(110,168,254,0.12)" : i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", padding: "4px 4px", textAlign: "center", minWidth: 58 } }, slot ? h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 1 } }, h("span", { style: { display: "inline-block", background: slot.boat.bg, color: slot.boat.text, borderRadius: 4, padding: "1px 5px", fontSize: 10, fontWeight: 800, lineHeight: 1.25, minWidth: 30 } }, slot.boat.label), race ? h("span", { style: { fontSize: 11, fontWeight: 900, lineHeight: 1.1, color: isPenalty ? race.codeObj?.color || "#f87171" : "var(--c-text)" } }, isPenalty ? race.code : `#${race.place}`) : h("span", { style: { fontSize: 9, color: "var(--c-muted)", fontWeight: 700, lineHeight: 1.1 } }, isActive ? "P\xE5 tur" : "")) : h("span", { style: { color: "var(--c-muted)", fontSize: 10 } }, "\u2014"));
       }));
     });
-    return h("div", { style: { background: "var(--c-surface)", borderRadius: 12, border: "1px solid var(--c-border)", overflow: "hidden" } }, title, h("div", { style: { overflowX: "auto" } }, h("table", { style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(620, 238 + allHeats.length * 58) } }, h("thead", null, headerTop, headerHeat), h("tbody", null, rows))));
+    return h("div", { style: { background: "var(--c-surface)", borderRadius: 12, border: "1px solid var(--c-border)", overflow: "hidden" } }, title, h("div", { style: { overflowX: "auto" } }, h("table", { className:"schedule-matrix public-schedule", style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(620, 238 + allHeats.length * 58) } }, h("thead", null, headerTop, headerHeat), h("tbody", null, rows))));
   }
   function LeaderboardView({ regatta, setRegatta, teams, schedule, setSchedule, boatColors, results, setResults, onGoStart, onFinishRegatta }) {
     const allHeats = flattenScheduleHeats(schedule);
@@ -15506,7 +15473,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
         borderRadius: 3,
         padding: ispenalty ? "1px 4px" : "0"
       } }, ispenalty ? r.code : `#${r.place}`, r.code === "ZFP" && r.place ? ` (${r.pts}p)` : "", r.nonExcludable ? "*" : ""));
-    })), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 900, fontSize: 18, color: "var(--c-text)", minWidth: 36, textAlign: "right" } }, entry.points % 1 === 0 ? entry.points : entry.points.toFixed(1), "p")))), notRaced.length > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 12, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)" } }, "Ej raceat:"), notRaced.map((t) => /* @__PURE__ */ import_react.default.createElement(TeamPill, { key: t.id, team: t })))), regatta?.finalMode && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Final" }, /* @__PURE__ */ import_react.default.createElement(FinalResultPanel, { regatta, teams, schedule, results })), completed > 0 && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Resultatmatris" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto", border: "1px solid var(--c-border)", borderRadius: 10 } }, /* @__PURE__ */ import_react.default.createElement("table", { style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(620, 170 + scoredHeats.length * 74) } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { rowSpan: 2, style: { position: "sticky", left: 0, zIndex: 3, background: "var(--c-surface)", color: "var(--c-muted)", fontSize: 11, textAlign: "left", padding: "8px 10px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "Team"), flightsForMatrix.map(({ flight, flightNum }) => /* @__PURE__ */ import_react.default.createElement("th", { key: flightNum, colSpan: flight.length, style: { background: "var(--c-surface2)", color: "var(--c-accent)", fontSize: 11, fontWeight: 800, textAlign: "center", padding: "7px 8px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "Flight ", flightNum + 1)), /* @__PURE__ */ import_react.default.createElement("th", { rowSpan: 2, style: { background: "var(--c-surface)", color: "var(--c-text)", fontSize: 11, textAlign: "right", padding: "8px 10px", borderBottom: "1px solid var(--c-border)" } }, "Totalt")), /* @__PURE__ */ import_react.default.createElement("tr", null, flightsForMatrix.flatMap(({ flight, startIdx, flightNum }) => flight.map((_, hi) => {
+    })), /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 900, fontSize: 18, color: "var(--c-text)", minWidth: 36, textAlign: "right" } }, entry.points % 1 === 0 ? entry.points : entry.points.toFixed(1), "p")))), notRaced.length > 0 && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 12, display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { fontSize: 11, color: "var(--c-muted)" } }, "Ej raceat:"), notRaced.map((t) => /* @__PURE__ */ import_react.default.createElement(TeamPill, { key: t.id, team: t })))), regatta?.finalMode && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Final" }, /* @__PURE__ */ import_react.default.createElement(FinalResultPanel, { regatta, teams, schedule, results })), completed > 0 && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Resultatmatris" }, /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto", border: "1px solid var(--c-border)", borderRadius: 10 } }, /* @__PURE__ */ import_react.default.createElement("table", { className:"schedule-matrix", style: { width: "100%", borderCollapse: "separate", borderSpacing: 0, minWidth: Math.max(620, 170 + scoredHeats.length * 74) } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { rowSpan: 2, style: { position: "sticky", left: 0, zIndex: 3, background: "var(--c-surface)", color: "var(--c-muted)", fontSize: 11, textAlign: "left", padding: "8px 10px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "Team"), flightsForMatrix.map(({ flight, flightNum }) => /* @__PURE__ */ import_react.default.createElement("th", { key: flightNum, colSpan: flight.length, style: { background: "var(--c-surface2)", color: "var(--c-accent)", fontSize: 11, fontWeight: 800, textAlign: "center", padding: "7px 8px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "Flight ", flightNum + 1)), /* @__PURE__ */ import_react.default.createElement("th", { rowSpan: 2, style: { background: "var(--c-surface)", color: "var(--c-text)", fontSize: 11, textAlign: "right", padding: "8px 10px", borderBottom: "1px solid var(--c-border)" } }, "Totalt")), /* @__PURE__ */ import_react.default.createElement("tr", null, flightsForMatrix.flatMap(({ flight, startIdx, flightNum }) => flight.map((_, hi) => {
       const h = startIdx + hi;
       return /* @__PURE__ */ import_react.default.createElement("th", { key: `${flightNum}-${hi}`, style: { background: "var(--c-surface2)", color: "var(--c-muted)", fontSize: 10, fontWeight: 700, textAlign: "center", padding: "6px 8px", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)" } }, "H", h + 1);
     })))), /* @__PURE__ */ import_react.default.createElement("tbody", null, ranked.map((entry, i) => /* @__PURE__ */ import_react.default.createElement("tr", { key: entry.team.id }, /* @__PURE__ */ import_react.default.createElement("td", { style: { position: "sticky", left: 0, zIndex: 2, background: i % 2 === 0 ? "var(--c-surface)" : "var(--c-surface2)", borderBottom: "1px solid var(--c-border)", borderRight: "1px solid var(--c-border)", padding: "8px 10px", minWidth: 150 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 12, fontWeight: 800, color: "var(--c-text)" } }, i + 1, ". ", entry.team.name), /* @__PURE__ */ import_react.default.createElement(CrewLine, { team: entry.team })), scoredHeats.map((heat) => {
@@ -15708,8 +15675,8 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const [rawResults, setResults] = (0, import_react.useState)({});
     const [rawLiveState, setLiveState] = (0, import_react.useState)(null);
     const { boatColors, schedule, results, liveState } = (0, import_react.useMemo)(() =>
-      normalizeBoatData({ boatColors: rawBoats, schedule: rawSchedule, results: rawResults, liveState: rawLiveState }),
-      [rawBoats, rawSchedule, rawResults, rawLiveState]);
+      normalizeBoatData({ regatta, boatColors: rawBoats, schedule: rawSchedule, results: rawResults, liveState: rawLiveState }),
+      [regatta, rawBoats, rawSchedule, rawResults, rawLiveState]);
     const setBoatColors = value => setRawBoats(typeof value === "function" ? value(boatColors) : value);
     const [shared, setShared] = (0, import_react.useState)(null);
     const [publishing, setPublishing] = (0, import_react.useState)(false);
@@ -16325,7 +16292,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       color: tab === i ? "var(--c-accent)" : "var(--c-muted)",
       borderBottom: tab === i ? "2px solid var(--c-accent)" : "2px solid transparent",
       transition: "color 0.15s"
-    } }, t.icon, " ", t.label))), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: "20px 16px" } }, tab === 0 && /* @__PURE__ */ import_react.default.createElement(SetupView, { regatta, setRegatta, boatColors, setBoatColors, teams, setTeams, syncSettings, setSyncSettings, syncState, onRetrySync: () => attemptRemoteSync(), onNext: () => setTab(1) }), tab === 1 && /* @__PURE__ */ import_react.default.createElement(ScheduleView, { regatta, boatColors, teams, schedule, setSchedule, results, onNext: () => setTab(2) }), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: tab === 2 ? "block" : "none" } }, (() => {
+    } }, t.icon, " ", t.label))), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: "20px 16px" } }, tab === 0 && /* @__PURE__ */ import_react.default.createElement(SetupView, { regatta, setRegatta, boatColors, setBoatColors, teams, setTeams, syncSettings, setSyncSettings, syncState, onRetrySync: () => attemptRemoteSync(), onNext: () => setTab(1) }), tab === 1 && /* @__PURE__ */ import_react.default.createElement(ScheduleView, { regatta, boatColors, teams, schedule, setSchedule, results, liveState, onNext: () => setTab(2) }), /* @__PURE__ */ import_react.default.createElement("div", { style: { display: tab === 2 ? "block" : "none" } }, (() => {
       try {
         return /* @__PURE__ */ import_react.default.createElement(StartView, { regatta, teams, schedule: sched, results, setResults, initialLiveState: liveState, onLiveUpdate: (live) => {
           setLiveState(live);

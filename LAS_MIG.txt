@@ -1,56 +1,101 @@
-SEGLINGSAPP – SEGELNUMMER OCH TILLBAKA FRÅN UTSKRIFT
+NYTT I DENNA VERSION – LÄSBART SCHEMA OCH UTSKRIFT
 
-Installation
-Ersätt dessa fyra filer på samma plats i ditt befintliga GitHub-projekt:
-  ledning.html
-  regattaapp_37.html
-  admin.html
-  index.html
+Schemat i appen har större heatkolumner, större text och tydliga celler.
+Bläddra i sidled för att se fler heat. Besättningsnamnet följer med.
+Långa segelnummer radbryts inom sin egen cell och går inte över nästa heat.
+Även den publika schemavyn och heat–båt-tabellen har rymligare celler.
 
-Fortsätt öppna ledning.html som vanligt.
-Behåll projektets övriga filer, till exempel flags/, api/ och manifestfiler.
-Detta paket är en uppdatering av HTML-filerna, inte ett komplett nytt serverprojekt.
+Klicka på Skriv ut schema i Schema-fliken. Utskriften är anpassad till
+liggande A4 och innehåller både heat–båt-tabell och besättningsschema.
+Besättningsschemat delas i avsnitt med högst sex heat. Varje avsnitt börjar
+på en ny utskriftssida; tabellrubriker upprepas om fler sidor behövs.
+Tillbaka återgår till appen. Knapparna skrivs inte ut.
 
-Användning
-I Setup finns avsnittet ”Båtar och segelnummer”. Välj antal båtar och
-ersätt de föreslagna numren med båtarnas riktiga segelnummer.
-Du kan exempelvis skriva SWE 123 eller 007. Inledande nollor bevaras.
-Lämna fältet eller tryck Enter för att spara. Tomma och dubbla nummer
-accepteras inte; det tidigare giltiga numret ligger kvar tills du rättar fältet.
+Kontrollerat med 45 heat, 16 besättningar, färg plus långa segelnummer,
+datorskärm, mobilskärm och webbläsarens utskriftsläge. Cellernas innehåll
+kontrollerades så att det inte går utanför den egna cellen.
 
-Segelnumret används i scheman, start/mål, resultat, statistik, publik vy,
-utskrifter och säkerhetskopior. Vid sprintrotation följer numret båten.
+SEGLINGSAPP – FÄRG, SEGELNUMMER OCH TVÅ SCHEMAVARIANTER
 
-Äldre sparade regattor
-Befintliga båt-id:n, scheman, poäng, måltider och besättningar bevaras.
-Äldre färgbåtar får inledningsvis löpnummer. Under nummerfältet visas
-”Tidigare: Gul”, etc., så att du kan ange rätt segelnummer för varje båt.
-Ändrat segelnummer följer också med i redan sparade heat och resultat.
-Minskat och sedan ökat båtantal behåller de tidigare angivna numren.
-Du kan använda Exportera före uppdateringen för att spara en separat backup.
+INSTALLATION
+Ersätt ledning.html, regattaapp_37.html, admin.html och index.html i ditt
+befintliga GitHub-projekt. Fortsätt öppna ledning.html som tidigare.
+Behåll övriga filer, flaggbilder, manifest och serverfunktioner.
+Paketet innehåller uppdaterade HTML-filer, inte ett komplett nytt serverprojekt.
+Exportera gärna din regatta som backup före uppdateringen.
 
-Utskrift
-Både Skriv ut schema och PDF slutställning har knappen ”Tillbaka”.
-Den stänger utskriftsfönstret och återgår till den appvy du kom från.
-Knapparna visas inte på papper eller i PDF-utskriften.
+BÅTARNAS IDENTIFIKATION
+I Setup → Båtar och identifikation väljer du:
+- Färg och segelnummer (förvalt för nya regattor)
+- Färg
+- Segelnummer
 
-Övriga hänvisningar
-admin.html och index.html använder relativa länkar till huvudversionen,
-så att de även fungerar när appen ligger i en undermapp.
-Länken till livesidan från ledning.html går nu till den publika huvudversionen.
+Välj färg för varje båt och ange exempelvis SWE 123 eller 007.
+Segelnummer sparas när du lämnar fältet eller trycker Enter.
+Tomma och dubbla segelnummer avvisas. Färger väljs utan dubbletter.
+Valet påverkar schema, start/mål, resultat, statistik, livesida och utskrift.
+Färger och nummer finns kvar när du byter visningsläge.
+Äldre färgregattor behåller färgvisning. Tidigare nummerregattor behåller
+nummervisning. Interna båt-id:n och sparade resultat bevaras.
 
-Kontrollerat
-Automatiska webbläsartester i Chrome omfattar:
-- Äldre färgdata, ändrade segelnummer, dubbletter, tomma fält och omladdning.
-- Bevarade båt-id:n, resultat, straffkoder och måltider.
-- Ny kappsegling med egna segelnummer och genererat rotationsschema.
-- Nedräkning, målregistrering och automatisk resultatsparning.
-- Startvy, resultat, statistik och publik vy med segelnummer.
-- Export/import och ändring av antal båtar.
-- Båda utskriftsvyerna, Tillbaka och dolda utskriftsknappar.
-- Hänvisningarna från admin.html och index.html.
-- Visuell kontroll av mobilvy och schemavy.
+SCHEMAN
+Välj antal omgångar (1–48). Varje besättning seglar ett heat per omgång.
+
+Klassisk rotation:
+För 10 besättningar/4 båtar och 11, 12 eller 16 besättningar/6 båtar används
+de uppladdade mallarnas faktiska tilldelningar, upp till 15 omgångar.
+Besättningarna lottas till mallens platser. Tomma båtplatser behålls.
+Helt tomma reservrader i mallarna blir inte heat.
+Andra kombinationer eller fler än 15 omgångar får ett beräknat schema.
+Det försöker sprida motståndare, balansera heat och båtanvändning samt vila.
+
+Färre båtbyten:
+Utgår från samma grundmetod och söker en bättre båttilldelning.
+Samma besättningar möts i samma heat. Vila och antal starter ändras inte.
+Varje besättning behåller exakt sitt antal seglingar i varje båt.
+Schemat får aldrig fler båtbyten än det grundschema som optimeras.
+Metoden garanterar inte det matematiskt minsta möjliga antalet byten.
+
+Ett båtbyte räknas när en besättning får en annan båt nästa gång den seglar,
+även om den vilar mellan starterna. Ombordstigning efter vila räknas inte
+som båtbyte om det är samma båt.
+
+SCHEMAKONTROLL
+Visar verkligt antal starter och båtbyten, direkt på varandra följande
+byten, möten mellan besättningar, längsta vila och båtfördelning.
+Öppna detaljerna för båtanvändning per besättning och motståndarmatrisen.
+Kontrollen räknas om även efter manuella ändringar.
+Mallarna är inte helt jämna i båtanvändning och motståndarmöten.
+Optimeringen av båtbyten behåller dessa fördelningar; den gör dem inte sämre.
+Ett kort schema kan vara för kort för att alla ska möta alla eller segla alla båtar.
+
+Det finns en ny tabell med heat som rader och båtar som kolumner, som i
+Excelmallarna. Besättningsmatrisen finns också kvar.
+Utskriften har båda tabelltyperna; besättningsmatrisen delas i mindre avsnitt.
+Tillbaka-knappen återgår till föregående appvy och skrivs inte ut.
+
+SPARADE RESULTAT OCH PÅGÅENDE HEAT
+En gammal regatta får inte nytt schema automatiskt när filerna byts ut.
+När schema regenereras bevaras hela omgångar fram till det senast sparade
+heatet. Senare omgångar kan lottas om. Båttilldelning kan inte ändras och
+schema kan inte regenereras under en pågående start/ett pågående heat.
+Efter skapad final behålls grundschemat.
+
+TESTER
+Båda varianterna har kontrollerats för 102 kombinationer:
+2–18 besättningar och 3–8 båtar, sex omgångar per kombination.
+Dessutom har de fyra fullständiga mallarna, korta scheman och upp till
+48 omgångar testats. Kontrollerna omfattar unika båtar per heat, en start
+per besättning och omgång, båtfördelning och färre/oförändrade båtbyten.
+
+Webbläsartester i Chrome: alla identifikationslägen, färgval, nummer,
+validering, omladdning, äldre data, ny regatta, schemagenerering, låsta
+resultat, startnedräkning, målregistrering, autosparning, statistik,
+export/import, publik vy, hänvisningar och båda utskriftsvyerna.
+Mobilvy, schemavy och utskriftslayout har också granskats visuellt.
 Inga JavaScript-fel uppstod i testerna.
 
-Tester kördes lokalt med externa nätanrop blockerade.
-Uppladdning/synk mot din riktiga server och fysisk utskrift har inte testats.
+Testerna var lokala. Synk mot din produktionsserver och fysisk utskrift
+har inte testats. Befintlig serversynk har inte ändrats.
+
+Läs SCHEMAN_OCH_TESTER.md för exempelresultat och källor.
