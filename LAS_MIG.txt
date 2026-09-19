@@ -1,9 +1,11 @@
-VERSION 10 – NAMN TILL VÄNSTER, HEAT ÖVERST
+VERSION 11 – KOMPAKT SCHEMA MED NUMMER PÅ FÄRG
 
 Ersätt HTML-filerna i ditt GitHub-projekt och öppna ledning.html som vanligt.
 Behåll projektets övriga filer. Regattor och anmälningar sparas som tidigare.
 
 SCHEMATS PRESENTATION
+Cellerna är nu mer kompakta. Segelnummer visas på färgad bakgrund utan
+färgnamn i läget Färg och segelnummer. Långa nummer radbryts inom cellen.
 Schemat i appen och utskriften har en besättning per rad, med namn till
 vänster och heat överst. Rutorna visar båtens färg och segelnummer.
 Den omvända tabellen med båtar som kolumner och heat som rader är borttagen.
@@ -12,8 +14,8 @@ Schemaläggningen och befintliga båttilldelningar är oförändrade.
 Ingen omlottning behövs för den här ändringen.
 
 I appen kan du bläddra i sidled medan namnkolumnen följer med.
-Utskriften delas upp i breda avsnitt med högst fyra heatkolumner, eller tre
-vid extra långa beteckningar. Långa nummer radbryts i sin egen cell.
+Utskriften anpassar kolumnbredden till numrens längd och rymmer upp till
+nio heat per avsnitt, eller sex vid extra långa nummer. Långa nummer radbryts i sin egen cell.
 Varje utskriftsavsnitt upprepar besättningsnamn och heatrubriker.
 Använd liggande A4. Aktivera bakgrundsgrafik om färgerna inte visas.
 Tillbaka-knappen återgår till appen och skrivs inte ut.
@@ -26,7 +28,7 @@ Resultat visar placering utan # eller båtuppgift. Publiksidan visar fortfarande
 färg och segelnummer för kommande heat, och placering när resultat finns.
 Livesidan öppnas via Publicera live → Öppna livesidan.
 
-TESTAT I VERSION 10
+TESTAT I VERSION 11
 45 heat, namnkolumn och heatrubriker, långa segelnummer, dator/mobil,
 utskriftsläge och Tillbaka. Inga båtmärken överlappar cellgränserna.
 Ingen Sitt kvar-markering eller omvänd båt–heat-tabell visas.

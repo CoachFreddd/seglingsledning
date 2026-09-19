@@ -1,3 +1,9 @@
+# Kompakt schema – version 11
+
+Färg och segelnummer visar nu endast numret på båtens färg. Appens heatkolumner är 110 bildpunkter, eller 140 vid långa nummer. Utskriftens kolumner är 90–140 bildpunkter beroende på nummerlängd. Mindre utfyllnad och kompaktare märken. Sista utskriftsavsnittet sträcks inte ut för att fylla sidan.
+
+Testat med 45 heat, långa nummer och visningsläget färg + nummer: inga färgnamn eller överlapp på dator, mobil och utskrift. Tillbaka verifierad. Utskriftslayouten granskad visuellt.
+
 # Schema med namn till vänster – version 10
 
 Appen och utskriften använder besättningar som rader och heat som kolumner. Den omvända båt–heat-tabellen och Sitt kvar-markeringarna är borttagna. Schemaläggning och sparade tilldelningar ändras inte. Utskriftens första tabell följer direkt efter sidhuvudet; senare avsnitt börjar på ny sida.
