@@ -27,14 +27,16 @@
 .boat-schedule th:nth-child(-n+2),.boat-schedule td:nth-child(-n+2) { min-width:70px; }
 .boat-schedule th span { white-space:nowrap; font-size:13px !important; }
 
-.crew-schedule { table-layout:fixed !important; width:calc(var(--heat-count) * var(--heat-width, 110px) + 280px) !important; }
-.crew-schedule th,.crew-schedule td { width:var(--heat-width, 110px); min-width:0 !important; }
+.crew-schedule { table-layout:fixed !important; width:calc(var(--heat-count) * var(--heat-width, 54px) + 280px) !important; }
+.crew-schedule th,.crew-schedule td { width:var(--heat-width, 54px); min-width:0 !important; }
 .crew-schedule th:first-child,.crew-schedule td:first-child { width:190px !important; max-width:190px !important; }
 .crew-schedule th:last-child,.crew-schedule td:last-child { width:90px; }
-.crew-schedule th,.crew-schedule td { padding:6px !important; }
+.crew-schedule th,.crew-schedule td { padding:4px 3px !important; }
+.crew-schedule td span { font-size:11px !important; padding:2px 4px !important; }
+.crew-schedule thead th { font-size:11px !important; }
 .crew-schedule td span { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
 @media(max-width:600px) {
- .crew-schedule { width:calc(var(--heat-count) * var(--heat-width, 110px) + 220px) !important; }
+ .crew-schedule { width:calc(var(--heat-count) * var(--heat-width, 54px) + 220px) !important; }
  .crew-schedule th:first-child,.crew-schedule td:first-child { width:130px !important; max-width:130px !important; }
 }
 </style>
@@ -13496,7 +13498,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     const legend = boatColors.map(badge).join("");
     // Wide columns take precedence over fitting every heat onto one sheet.
     const maxLabelLength = Math.max(0,...boatColors.map(b=>String(b.label||'').length));
-    const heatWidth = maxLabelLength > 14 ? 140 : maxLabelLength > 8 ? 110 : 90;
+    const heatWidth = maxLabelLength > 14 ? 140 : maxLabelLength > 8 ? 110 : 54;
     const columnsPerPage = Math.floor((1047 - 170) / heatWidth);
     const chunks=[];let group=[];
     (schedule||[]).forEach((flight,fi)=>{
@@ -13506,7 +13508,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
     });
     if(group.length)chunks.push(group);
     const crewTables=chunks.map(heats=>{
-      return `<section class="matrix-chunk"><h2>Besättningsschema · heat ${heats[0].globalIdx+1}–${heats[heats.length-1].globalIdx+1}</h2><table style="width:${170+heats.length*heatWidth}px;max-width:100%"><colgroup><col style="width:170px">${heats.map(()=>'<col>').join('')}</colgroup><thead><tr><th class="team">Besättning</th>${heats.map(h=>`<th>Omgång ${h.flightNum+1}<br><strong>Heat ${h.globalIdx+1}</strong></th>`).join("")}</tr></thead><tbody>${teams.map(t=>`<tr><th class="team">${escapeHtml(t.name)}</th>${heats.map(h=>{const b=matrix?.[t.id]?.[h.globalIdx];return `<td>${b?badge(b):"–"}</td>`;}).join("")}</tr>`).join("")}</tbody></table></section>`;
+      return `<section class="matrix-chunk"><h2>Besättningsschema · heat ${heats[0].globalIdx+1}–${heats[heats.length-1].globalIdx+1}</h2><table style="width:${170+heats.length*heatWidth}px;max-width:100%"><colgroup><col style="width:170px">${heats.map(()=>'<col>').join('')}</colgroup><thead><tr><th class="team">Besättning</th>${heats.map(h=>`<th>F${h.flightNum+1}<br><strong>H${h.globalIdx+1}</strong></th>`).join("")}</tr></thead><tbody>${teams.map(t=>`<tr><th class="team">${escapeHtml(t.name)}</th>${heats.map(h=>{const b=matrix?.[t.id]?.[h.globalIdx];return `<td>${b?badge(b):"–"}</td>`;}).join("")}</tr>`).join("")}</tbody></table></section>`;
     }).join("");
     const html = `<!doctype html><html lang="sv"><head><meta charset="utf-8"/><title>${escapeHtml(title)} - schema</title><style>
       @page { size: A4 landscape; margin: 10mm; }
@@ -13516,7 +13518,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       h1 { font-size:24px; line-height:1.1; margin:0 0 5px; }
       .meta { color:#4b5563; font-size:12px; font-weight:600; }
       .legend { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; max-width:45%; }
-      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:3px 5px; font-size:13px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; max-width:100%; white-space:normal; line-height:1.4; text-align:center; }
+      .legend-boat,.boat { display:inline-block; border-radius:5px; padding:2px 3px; font-size:11px; font-weight:800; border:1px solid rgba(0,0,0,.16); min-width:38px; max-width:100%; white-space:normal; line-height:1.4; text-align:center; }
       .matrix-chunk { margin-top:24px; }
       thead { display:table-header-group; }
       h2 { break-after:avoid; font-size:18px; }
@@ -13527,7 +13529,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       .boat,.legend-boat { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       .boat.small { font-size:10px; min-width:44px; margin-right:5px; }
       table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; line-height:1.4; page-break-inside:auto; }
-      th,td { border:1px solid #d1d5db; padding:5px 4px; text-align:center; vertical-align:middle; }
+      th,td { border:1px solid #d1d5db; padding:4px 3px; text-align:center; vertical-align:middle; }
       thead th { background:#eef2ff; color:#111827; font-weight:900; }
       thead .flight { background:#dbeafe; font-size:11px; }
       th.team { background:#fff; text-align:left; width:170px; font-size:12px; }
@@ -13808,7 +13810,7 @@ window.storage={_data:{},_key:(k,s)=>(s?'shared:':'')+k,get:async(k,s)=>{const K
       fontWeight: 600,
       cursor: "pointer",
       fontFamily: "inherit"
-    } }, editMode ? "\u2713 St\xE4ng redigering" : "\u270E Redigera b\xE5ttilldelning")), editMode && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, background: "rgba(146,64,14,0.1)", border: "1px solid rgba(146,64,14,0.4)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#FCD34D" } }, "Klicka p\xE5 ett team i ett heat \u2192 klicka sedan ett annat team i samma heat \u2192 deras b\xE5tar byter plats.", swapA ? /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 700 } }, " Vald: heat ", swapA.heatGlobalIdx + 1, ". Klicka nu p\xE5 ett annat team i samma heat.") : "")), generated && import_react.default.createElement(ScheduleQuality, {schedule,teams,boats:activeBoats}), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Kappseglingsschema" }, import_react.default.createElement("p", {style:{fontSize:13,color:"var(--c-muted)",marginBottom:10}}, "Dra schemat i sidled för fler heat. Varje kolumn är ett heat. Färg och segelnummer visar vilken båt du ska segla. Besättningens namn följer med när du bläddrar."), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { className:"schedule-matrix crew-schedule", style: { "--heat-count":totalHeats, "--heat-width":`${Math.max(...activeBoats.map(b=>String(b.label).length),0)>14?140:110}px`, borderCollapse: "separate", width: "100%", fontSize: 14 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { style: { textAlign: "left", padding: "6px 10px", color: "var(--c-muted)", fontWeight: 600, borderBottom: "2px solid var(--c-border)", minWidth: 120 } }, "Team"), flightGroups.map(
+    } }, editMode ? "\u2713 St\xE4ng redigering" : "\u270E Redigera b\xE5ttilldelning")), editMode && /* @__PURE__ */ import_react.default.createElement("div", { style: { marginTop: 10, background: "rgba(146,64,14,0.1)", border: "1px solid rgba(146,64,14,0.4)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#FCD34D" } }, "Klicka p\xE5 ett team i ett heat \u2192 klicka sedan ett annat team i samma heat \u2192 deras b\xE5tar byter plats.", swapA ? /* @__PURE__ */ import_react.default.createElement("span", { style: { fontWeight: 700 } }, " Vald: heat ", swapA.heatGlobalIdx + 1, ". Klicka nu p\xE5 ett annat team i samma heat.") : "")), generated && import_react.default.createElement(ScheduleQuality, {schedule,teams,boats:activeBoats}), generated && /* @__PURE__ */ import_react.default.createElement(Sect, { title: "Kappseglingsschema" }, import_react.default.createElement("p", {style:{fontSize:13,color:"var(--c-muted)",marginBottom:10}}, "Dra schemat i sidled för fler heat. Varje kolumn är ett heat. Färg och segelnummer visar vilken båt du ska segla. Besättningens namn följer med när du bläddrar."), /* @__PURE__ */ import_react.default.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ import_react.default.createElement("table", { className:"schedule-matrix crew-schedule", style: { "--heat-count":totalHeats, "--heat-width":`${Math.max(...activeBoats.map(b=>String(b.label).length),0)>8?110:54}px`, borderCollapse: "separate", width: "100%", fontSize: 14 } }, /* @__PURE__ */ import_react.default.createElement("thead", null, /* @__PURE__ */ import_react.default.createElement("tr", null, /* @__PURE__ */ import_react.default.createElement("th", { style: { textAlign: "left", padding: "6px 10px", color: "var(--c-muted)", fontWeight: 600, borderBottom: "2px solid var(--c-border)", minWidth: 120 } }, "Team"), flightGroups.map(
       (fg) => fg.heats.map((h, hi) => /* @__PURE__ */ import_react.default.createElement("th", { key: h.globalIdx, style: {
         padding: "4px 6px",
         textAlign: "center",

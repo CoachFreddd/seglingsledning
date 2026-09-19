@@ -1,3 +1,18 @@
+VERSION 13 – KORTA UTSKRIFTSRUBRIKER
+
+Utskriften använder F1, F2 osv. för flight och H1, H2 osv. för heat.
+De kompakta cellerna från version 12 behålls.
+
+VERSION 12 – FYRSIFFRIGA SEGELNUMMER
+
+Schemacellerna är cirka hälften så breda som i version 11 för korta nummer.
+Segelnumren visas med 11 px text på färgad bakgrund. Utskriften har korta
+rubriker: F = flight, H = heat. Upp till 16 heat ryms per avsnitt.
+Testat med 45 heat och fyrsiffriga nummer: inga överlapp på dator, mobil
+eller i utskrift. Namnkolumn och Tillbaka fungerar. Ingen omlottning behövs.
+
+Tidigare versionsanteckningar (breddangivelser ersätts av ovanstående):
+
 VERSION 11 – KOMPAKT SCHEMA MED NUMMER PÅ FÄRG
 
 Ersätt HTML-filerna i ditt GitHub-projekt och öppna ledning.html som vanligt.
